@@ -1,4 +1,4 @@
-<!doctype html><!doctype html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
@@ -19,21 +19,27 @@
       .btn-outline:hover { border-color: #ef4444; }
     </style>
 
-    <!-- React + ReactDOM (UMD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Framer Motion (UMD) -->
-    <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.js"></script>
-    <!-- Babel (para transformar JSX en el navegador) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- React + ReactDOM desde jsDelivr (a veces unpkg queda bloqueado por red corporativa) -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Framer Motion (si no carga, más abajo hacemos “fallback” para que no rompa) -->
+    <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
+
+    <!-- Babel para transformar JSX en el navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
   </head>
   <body>
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <!-- IMPORTANTE: data-presets="react" -->
     <script type="text/babel" data-presets="react">
+      // ====== Fallback por si Framer Motion no carga ======
+      const FM = window['framer-motion'] || {};
+      const motion = FM.motion || new Proxy({}, { get: () => (props) => React.createElement('div', props) });
+      const AnimatePresence = FM.AnimatePresence || (({children}) => children);
+
       const { useState, useMemo } = React;
-      const { motion, AnimatePresence } = window['framer-motion'];
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       const fx = { play: (name, vol=0.5, muted=false) => { if (muted) return; const a = new Audio('sounds/' + name + '.mp3'); a.volume = vol; a.play().catch(() => {});} };
 
@@ -102,86 +108,78 @@
         ]},
       ];
 
-      function ProgressBar({ value=0 }) { const v = Math.max(0, Math.min(100, value)); return <div className="progress w-full"><div style={{width: v+'%'}}></div></div>; }
-      function HUD({ ltv, omni, satisfaction, risk, online, offline }) {
+      const ProgressBar = ({ value=0 }) => { const v = Math.max(0, Math.min(100, value)); return <div className="progress w-full"><div style={{width: v+'%'}}></div></div>; };
+      const HUD = ({ ltv, omni, satisfaction, risk, online, offline }) => {
         const items = [{label:'💰 LTV',val:Math.round(ltv)},{label:'🔄 Omnicanalidad',val:omni,isPct:true},{label:'❤️ Satisfacción',val:satisfaction,isPct:true},{label:'⚠️ Riesgo',val:risk,isPct:true},{label:'🏪 Sala',val:offline,isPct:true},{label:'💻 Online',val:online,isPct:true}];
         return (<div className="mt-6 grid md:grid-cols-6 gap-4">
           {items.map((m) => (<div key={m.label} className="card"><div className="p-4"><p className="text-xs text-gray-300/80">{m.label}</p><div className="flex items-center gap-3 mt-2"><ProgressBar value={Math.max(0,Math.min(100,m.val))} /><span className="text-sm text-gray-200 w-12 text-right">{m.isPct?`${Math.max(0,Math.min(100,m.val))}%`:m.val}</span></div></div></div>))}
         </div>);
-      }
-      function Board({ levelIndex, onStartScenario, ltv, omni, satisfaction, risk, online, offline }) {
-        return (
-          <div className="card">
-            <div className="p-8">
-              <h2 className="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-2">🏔️ Tablero del Everest</h2>
-              <div className="grid md:grid-cols-6 gap-3">
-                {LEVELS.map((_, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${i <= levelIndex ? 'bg-red-600' : 'bg-gray-600'}`}>{i+1}</div>
-                    <p className="text-xs text-gray-300 mt-2">Camp {i}</p>
-                  </div>
-                ))}
-              </div>
-              <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
-              <div className="flex justify-center mt-6"><button className="btn btn-primary" onClick={onStartScenario}>Abrir escenario</button></div>
+      };
+      const Board = ({ levelIndex, onStartScenario, ltv, omni, satisfaction, risk, online, offline }) => (
+        <div className="card">
+          <div className="p-8">
+            <h2 className="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-2">🏔️ Tablero del Everest</h2>
+            <div className="grid md:grid-cols-6 gap-3">
+              {LEVELS.map((_, i) => (
+                <div key={i} className="flex flex-col items-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${i <= levelIndex ? 'bg-red-600' : 'bg-gray-600'}`}>{i+1}</div>
+                  <p className="text-xs text-gray-300 mt-2">Camp {i}</p>
+                </div>
+              ))}
+            </div>
+            <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+            <div className="flex justify-center mt-6"><button className="btn btn-primary" onClick={onStartScenario}>Abrir escenario</button></div>
+          </div>
+        </div>
+      );
+      const ScenarioCard = ({ levelTitle, scenario, onChoose }) => (
+        <div className="card">
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-300/80 uppercase tracking-wider">{levelTitle}</p>
+            <h3 className="text-2xl md:text-3xl font-semibold text-red-400">{scenario.title}</h3>
+            {scenario.text && <p className="text-gray-200/90">{scenario.text}</p>}
+            <div className="grid md:grid-cols-3 gap-3">
+              {scenario.options.map((opt, i) => (
+                <div key={i}><button className="btn btn-outline w-full text-left" onClick={() => onChoose(opt.impact)}>{opt.text}</button></div>
+              ))}
             </div>
           </div>
-        );
-      }
-      function ScenarioCard({ levelTitle, scenario, onChoose }) {
-        return (
-          <div className="card">
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-300/80 uppercase tracking-wider">{levelTitle}</p>
-              <h3 className="text-2xl md:text-3xl font-semibold text-red-400">{scenario.title}</h3>
-              {scenario.text && <p className="text-gray-200/90">{scenario.text}</p>}
-              <div className="grid md:grid-cols-3 gap-3">
-                {scenario.options.map((opt, i) => (
-                  <div key={i}><button className="btn btn-outline w-full text-left" onClick={() => onChoose(opt.impact)}>{opt.text}</button></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      }
-      function EventModal({ onClose, onPositive }) {
-        return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="w-full max-w-xl">
-              <div className="card" style={{borderColor:'#f59e0b'}}>
-                <div className="p-6">
-                  <h3 className="text-xl md:text-2xl font-bold text-yellow-400 flex items-center gap-2">⚠️ Evento aleatorio</h3>
-                  <p className="text-gray-200 mt-2">⚽ ¡Clásico Madrid–Barça! Viewing party en sala. Puedes invitar a VIPs online para impulsar omnicanalidad.</p>
-                  <div className="flex gap-3 mt-4">
-                    <button className="btn btn-secondary" style={{background:'#f59e0b',color:'#000'}} onClick={onPositive}>Invitar VIPs Online</button>
-                    <button className="btn btn-outline" onClick={onClose}>Ignorar</button>
-                  </div>
+        </div>
+      );
+      const EventModal = ({ onClose, onPositive }) => (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="w-full max-w-xl">
+            <div className="card" style={{borderColor:'#f59e0b'}}>
+              <div className="p-6">
+                <h3 className="text-xl md:text-2xl font-bold text-yellow-400 flex items-center gap-2">⚠️ Evento aleatorio</h3>
+                <p className="text-gray-200 mt-2">⚽ ¡Clásico Madrid–Barça! Viewing party en sala. Puedes invitar a VIPs online para impulsar omnicanalidad.</p>
+                <div className="flex gap-3 mt-4">
+                  <button className="btn btn-secondary" style={{background:'#f59e0b',color:'#000'}} onClick={onPositive}>Invitar VIPs Online</button>
+                  <button className="btn btn-outline" onClick={onClose}>Ignorar</button>
                 </div>
               </div>
             </div>
           </div>
-        );
-      }
-      function FinalScreen({ score, stats, onRestart }) {
-        return (
-          <div className="card">
-            <div className="text-center space-y-4 py-12 px-6">
-              <div className="text-5xl">🏆</div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-red-400">¡Has alcanzado la Cima!</h2>
-              <p className="text-gray-200 text-lg">Puntuación final: <span className="font-bold">{score}</span></p>
-              <div className="grid md:grid-cols-3 gap-3 text-sm text-gray-200 max-w-3xl mx-auto">
-                <div className="bg-white/5 p-3 rounded-xl">LTV: <b>{Math.round(stats.ltv)}</b></div>
-                <div className="bg-white/5 p-3 rounded-xl">Omnicanalidad: <b>{Math.round(stats.omni)}%</b></div>
-                <div className="bg-white/5 p-3 rounded-xl">Satisfacción: <b>{Math.round(stats.satisfaction)}%</b></div>
-                <div className="bg-white/5 p-3 rounded-xl">Riesgo: <b>{Math.round(stats.risk)}%</b></div>
-                <div className="bg-white/5 p-3 rounded-xl">Sala: <b>{Math.round(stats.offline)}%</b></div>
-                <div className="bg-white/5 p-3 rounded-xl">Online: <b>{Math.round(stats.online)}%</b></div>
-              </div>
-              <div className="flex justify-center gap-4 mt-4"><button className="btn btn-secondary" onClick={onRestart}>🔁 Reiniciar</button></div>
+        </div>
+      );
+      const FinalScreen = ({ score, stats, onRestart }) => (
+        <div className="card">
+          <div className="text-center space-y-4 py-12 px-6">
+            <div className="text-5xl">🏆</div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-red-400">¡Has alcanzado la Cima!</h2>
+            <p className="text-gray-200 text-lg">Puntuación final: <span className="font-bold">{score}</span></p>
+            <div className="grid md:grid-cols-3 gap-3 text-sm text-gray-200 max-w-3xl mx-auto">
+              <div className="bg-white/5 p-3 rounded-xl">LTV: <b>{Math.round(stats.ltv)}</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Omnicanalidad: <b>{Math.round(stats.omni)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Satisfacción: <b>{Math.round(stats.satisfaction)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Riesgo: <b>{Math.round(stats.risk)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Sala: <b>{Math.round(stats.offline)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Online: <b>{Math.round(stats.online)}%</b></div>
             </div>
+            <div className="flex justify-center gap-4 mt-4"><button className="btn btn-secondary" onClick={onRestart}>🔁 Reiniciar</button></div>
           </div>
-        );
-      }
+        </div>
+      );
 
       function App() {
         const [screen, setScreen] = useState('lobby');
@@ -233,7 +231,7 @@
         return (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <motion.h1 initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} className="text-2xl md:text-3xl font-extrabold text-red-400 tracking-tight">EVEREST CLIENTE — Demo Jugable (Static)</motion.h1>
+              <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}><h1 className="text-2xl md:text-3xl font-extrabold text-red-400 tracking-tight">EVEREST CLIENTE — Demo Jugable (Static)</h1></motion.div>
               <div className="flex items-center gap-3">
                 <button className="btn btn-outline text-sm" onClick={() => setMuted(m => !m)}>{muted ? '▶️ Sonido' : '⏸️ Silencio'}</button>
                 <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
@@ -262,5 +260,4 @@
       ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
   </body>
-</html>
 </html>
