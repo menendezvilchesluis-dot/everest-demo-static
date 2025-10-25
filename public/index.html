@@ -129,6 +129,10 @@
               ))}
             </div>
             <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+            <div className="mt-4 text-xs text-gray-400 bg-white/5 rounded-lg p-3">
+  <p>💰 LTV: {ltv} | 🔄 Omni: {omni}% | ❤️ Sat: {satisfaction}% | ⚠️ Riesgo: {risk}% | 🏪 Sala: {offline}% | 💻 Online: {online}%</p>
+</div>
+
             <div className="flex justify-center mt-6"><button className="btn btn-primary" onClick={onStartScenario}>Abrir escenario</button></div>
           </div>
         </div>
@@ -262,4 +266,5 @@
     </script>
   </body>
 </html>
+
 
