@@ -48,10 +48,10 @@
         { key:'captacion', title:'Campamento Base — Captación', scenarios:[
           { id:'C1', title:'Haz Match con tu Slot Ideal', text:'Promoción online de 5€/día durante 7 días.',
             options:[
-              { text:'Lanzarla solo online', impact:{ LTV:10, satisfaction:5, risk:2, omnichannel_index:0, online_activity:8, offline_activity:0 } },
+             { text:'Lanzarla solo online', impact:{ LTV:8, satisfaction:3, risk:2, omnichannel_index:-4, online_activity:12, offline_activity:-6 } },
               { text:'Extenderla a clientes de sala', impact:{ LTV:8, satisfaction:8, risk:2, omnichannel_index:12, online_activity:6, offline_activity:4 } },
-              { text:'Sustituir por invitación presencial', impact:{ LTV:6, satisfaction:10, risk:0, omnichannel_index:16, online_activity:2, offline_activity:8 } },
-            ]},
+              { text:'Sustituir por invitación presencial', impact:{ LTV:3, satisfaction:8, risk:0, omnichannel_index:6, online_activity:-6, offline_activity:12 } },
+
           { id:'C2', title:'Registro cruzado en sala', text:'Regístrate online desde el local y recibe consumición.',
             options:[
               { text:'Activar en 5 locales piloto', impact:{ LTV:9, satisfaction:6, risk:1, omnichannel_index:15, online_activity:6, offline_activity:6 } },
@@ -61,10 +61,9 @@
         { key:'activacion', title:'Campamento 1 — Activación', scenarios:[
           { id:'A1', title:'Cliente de sala descubre online', text:'Un habitual de sala descarga la app; baja su ritmo presencial.',
             options:[
-              { text:'Enviar bono personalizado', impact:{ LTV:10, satisfaction:5, risk:4, omnichannel_index:5, online_activity:18, offline_activity:-8 } },
+              { text:'Enviar bono personalizado', impact:{ LTV:9, satisfaction:4, risk:5, omnichannel_index:-2, online_activity:14, offline_activity:-10 } },
               { text:'Combo sala + online (equilibrado)', impact:{ LTV:14, satisfaction:9, risk:2, omnichannel_index:22, online_activity:10, offline_activity:10 } },
-              { text:'No intervenir', impact:{ LTV:0, satisfaction:-2, risk:0, omnichannel_index:-2, online_activity:2, offline_activity:-5 } },
-            ]},
+              { text:'No intervenir', impact:{ LTV:-4, satisfaction:-6, risk:0, omnichannel_index:-6, online_activity:0, offline_activity:-8 } },
           { id:'A2', title:'Tutorial en sala para jugar online', text:'Sesión guiada en local + consumición.',
             options:[
               { text:'Hacerlo fin de semana', impact:{ LTV:8, satisfaction:10, risk:1, omnichannel_index:16, online_activity:10, offline_activity:6 } },
@@ -75,8 +74,7 @@
           { id:'R1', title:'Cross-Promo Doble Pista', text:'Juega online → copa en sala; juega en sala → spins online.',
             options:[
               { text:'Segmentada por valor', impact:{ LTV:14, satisfaction:9, risk:2, omnichannel_index:26, online_activity:12, offline_activity:12 } },
-              { text:'Para todos', impact:{ LTV:10, satisfaction:6, risk:3, omnichannel_index:18, online_activity:9, offline_activity:9 } },
-            ]},
+             { text:'Para todos', impact:{ LTV:4, satisfaction:5, risk:6, omnichannel_index:6, online_activity:6, offline_activity:6 } },
           { id:'R2', title:'Evento F1 en sala (invitación desde app)', text:'Viewing party con ventajas para jugadores online.',
             options:[
               { text:'VIPs online', impact:{ LTV:10, satisfaction:10, risk:1, omnichannel_index:14, online_activity:5, offline_activity:14 } },
@@ -87,11 +85,10 @@
           { id:'S1', title:'Jugador intensivo omnicanal', text:'Señales de juego intenso. ¿Qué haces?',
             options:[
               { text:'Activar límites y enfriar', impact:{ LTV:-6, satisfaction:4, risk:-12, omnichannel_index:0, online_activity:-8, offline_activity:-6 } },
-              { text:'No intervenir', impact:{ LTV:6, satisfaction:-8, risk:18, omnichannel_index:-4, online_activity:12, offline_activity:10 } },
-            ]},
+              { text:'No intervenir', impact:{ LTV:2, satisfaction:-10, risk:20, omnichannel_index:-6, online_activity:10, offline_activity:8 } },
           { id:'S2', title:'Auto-exclusión voluntaria', text:'Cliente solicita auto-exclusión.',
             options:[
-              { text:'Proceder y ofrecer ayuda', impact:{ LTV:-10, satisfaction:8, risk:-20, omnichannel_index:0, online_activity:-20, offline_activity:-12 } },
+              { text:'Proceder y ofrecer ayuda', impact:{ LTV:-12, satisfaction:10, risk:-25, omnichannel_index:0, online_activity:-18, offline_activity:-10 } },
               { text:'Intentar retener (NO recomendado)', impact:{ LTV:5, satisfaction:-12, risk:30, omnichannel_index:-8, online_activity:10, offline_activity:6 } },
             ]},
         ]},
@@ -151,22 +148,25 @@
           </div>
         </div>
       );
-      const EventModal = ({ onClose, onPositive }) => (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-xl">
-            <div className="card" style={{borderColor:'#f59e0b'}}>
-              <div className="p-6">
-                <h3 className="text-xl md:text-2xl font-bold text-yellow-400 flex items-center gap-2">⚠️ Evento aleatorio</h3>
-                <p className="text-gray-200 mt-2">⚽ ¡Clásico Madrid–Barça! Viewing party en sala. Puedes invitar a VIPs online para impulsar omnicanalidad.</p>
-                <div className="flex gap-3 mt-4">
-                  <button className="btn btn-secondary" style={{background:'#f59e0b',color:'#000'}} onClick={onPositive}>Invitar VIPs Online</button>
-                  <button className="btn btn-outline" onClick={onClose}>Ignorar</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+      const {eventReady && (
+  <EventModal 
+    onClose={() => {
+      fx.play('decision', 0.5, muted);
+      setEventReady(false);
+      goNextLevel(); // continúa automáticamente
+    }} 
+    onPositive={() => { 
+      fx.play('decision', 0.6, muted);
+      setLtv(v => v + 6); 
+      setSatisfaction(v => clamp(v + 6, 0, 100)); 
+      setRisk(v => clamp(v - 2, 0, 100)); 
+      setOmni(v => clamp(v + 8, 0, 100)); 
+      setEventReady(false);
+      goNextLevel(); // pasa al siguiente nivel tras resolver evento
+    }} 
+  />
+)}
+
       const FinalScreen = ({ score, stats, onRestart }) => (
         <div className="card">
           <div className="text-center space-y-4 py-12 px-6">
@@ -198,21 +198,55 @@
         const [risk, setRisk] = useState(10);
         const [online, setOnline] = useState(50);
         const [offline, setOffline] = useState(50);
+        const [pendingAdvance, setPendingAdvance] = useState(false);
 
-        const applyImpact = (impact) => {
-          fx.play('decision', 0.6, muted);
-          setLtv(v => v + (impact.LTV || 0));
-          setSatisfaction(v => clamp(v + (impact.satisfaction || 0), 0, 100));
-          setRisk(v => clamp(v + (impact.risk || 0), 0, 100));
-          setOnline(v => clamp(v + (impact.online_activity || 0), 0, 200));
-          setOffline(v => clamp(v + (impact.offline_activity || 0), 0, 200));
-          setOmni(v => {
-            const base = v + (impact.omnichannel_index || 0);
-            const balanceBonus = 20 - Math.abs((online + (impact.online_activity || 0)) - (offline + (impact.offline_activity || 0))) * 0.1;
-            return clamp(base + balanceBonus, 0, 100);
-          });
-          setTimeout(() => nextStep(), 300);
-        };
+
+       const applyImpact = (impact) => {
+  // pequeña variación aleatoria para realismo (±3)
+  const jitter = (n=3) => (Math.random() * (2*n) - n); // -n..+n
+
+  const dLTV   = (impact.LTV ?? 0) + jitter();
+  const dSat   = (impact.satisfaction ?? 0) + jitter();
+  const dRisk  = (impact.risk ?? 0) + jitter();
+  const dOn    = (impact.online_activity ?? 0) + jitter();
+  const dOff   = (impact.offline_activity ?? 0) + jitter();
+  const dOmniI = (impact.omnichannel_index ?? 0) + jitter();
+
+  // aplica impactos base
+  setLtv(v => v + dLTV);
+  setSatisfaction(v => clamp(v + dSat,   0, 100));
+  setRisk(v => clamp(v + dRisk,          0, 100));
+
+  // actividad por canal (0..100)
+  setOnline(v => clamp(v + dOn,  0, 100));
+  setOffline(v => clamp(v + dOff, 0, 100));
+
+  // omnicanalidad: índice + equilibrio entre canales
+  setOmni(v => {
+    // equilibrio: cuanto más parecidos online/offline, más bonus; si se desbalancea, penaliza
+    const afterOn  = clamp(online  + dOn,  0, 100);
+    const afterOff = clamp(offline + dOff, 0, 100);
+    const gap = Math.abs(afterOn - afterOff); // 0 = perfecto, 100 = desbalance total
+    const balanceComponent = 18 - gap * 0.20; // entre +18 y -2 aprox.
+    return clamp(v + dOmniI + balanceComponent, 0, 100);
+  });
+
+  // feedback por riesgo alto: si sube mucho el riesgo, cae un poco satisfacción y LTV
+  setSatisfaction(v => {
+    const penalty = risk > 60 ? (risk - 60) * 0.08 : 0; // hasta ~3–4 pts
+    return clamp(v - penalty, 0, 100);
+  });
+  setLtv(v => {
+    const penalty = risk > 75 ? (risk - 75) * 0.2 : 0; // impacto económico
+    return v - penalty;
+  });
+
+  // sonido y marcar que toca avanzar
+  fx.play('decision', 0.6, muted);
+  setPendingAdvance(true);
+};
+
+          };
         const nextStep = () => {
           const moreScenarios = scenarioIndex + 1 < LEVELS[levelIndex].scenarios.length;
           if (moreScenarios) { setScenarioIndex(i => i + 1); return; }
@@ -255,6 +289,13 @@
               </div></div></div>)}
               {screen === 'board' && (<div><Board levelIndex={levelIndex} onStartScenario={() => setScreen('scenario')} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} /></div>)}
               {screen === 'scenario' && (<div><ScenarioCard levelTitle={LEVELS[levelIndex].title} scenario={LEVELS[levelIndex].scenarios[scenarioIndex]} onChoose={(impact) => { applyImpact(impact); }} /><HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} /></div>)}
+              {pendingAdvance && (
+  <div className="flex justify-center mt-4">
+    <button className="btn btn-primary" onClick={() => { setPendingAdvance(false); nextStep(); }}>
+      Continuar ▶
+    </button>
+  </div>
+)}
               {eventReady && (<EventModal onClose={() => setEventReady(false)} onPositive={() => { setLtv(v=>v+6); setSatisfaction(v=>clamp(v+6,0,100)); setRisk(v=>clamp(v-2,0,100)); setOmni(v=>clamp(v+8,0,100)); setEventReady(false); }} />)}
               {screen === 'final' && (<FinalScreen score={finalScore} stats={{ ltv, omni, satisfaction, risk, online, offline }} onRestart={resetGame} />)}
             </AnimatePresence>
@@ -266,5 +307,6 @@
     </script>
   </body>
 </html>
+
 
 
