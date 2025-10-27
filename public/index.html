@@ -18,6 +18,8 @@
       .btn-primary { background: #dc2626; } .btn-primary:hover { background: #b91c1c; }
       .btn-secondary { background: #374151; } .btn-outline { border: 1px solid #4b5563; }
       .btn-outline:hover { border-color: #ef4444; }
+      .btn:disabled { opacity:.5; cursor:not-allowed; }
+      .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
     </style>
 
     <!-- React + ReactDOM -->
@@ -41,9 +43,8 @@
 
       const { useState, useMemo, useEffect } = React;
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      const rnd = (n) => Math.round(n); // redondeo visual
+      const rnd = (n) => Math.round(n);
 
-      // sonidos (silencioso si muted)
       const fx = {
         play: (name, vol=0.5, muted=false) => {
           if (muted) return;
@@ -56,6 +57,7 @@
       // =======================
       // CONTENIDO PRINCIPAL
       // =======================
+      // IMPACTOS con trade-offs: hay pérdidas reales si te sesgas a un canal o sube el riesgo.
       const LEVELS = [
         { key:'captacion', title:'Campamento Base — Captación', scenarios: [
           {
@@ -63,9 +65,12 @@
             title:'Haz Match con tu Slot Ideal',
             text:'Promoción online de 5€/día durante 7 días.',
             options:[
-              { text:'Lanzarla solo online',           impact:{ LTV:+6, satisfaction:+3, risk:+2, omnichannel_index:-4, online_activity:+10, offline_activity:-8 } },
-              { text:'Extenderla a clientes de sala',  impact:{ LTV:+8, satisfaction:+7, risk:+2, omnichannel_index:+10, online_activity:+6,  offline_activity:+6 } },
-              { text:'Sustituir por invitación presencial', impact:{ LTV:+3, satisfaction:+8, risk:+0, omnichannel_index:+6,  online_activity:-6,  offline_activity:+12 } },
+              // Sesgo muy digital: arranca online pero “canibaliza” sala, baja omni y sube algo riesgo.
+              { text:'Lanzarla solo online',           impact:{ LTV:+4,  satisfaction:+1,  risk:+3,  omnichannel_index:-6, online_activity:+12, offline_activity:-10 } },
+              // Omnicanal equilibrado: sube omni, on y off; coste mayor -> LTV sube menos; riesgo controlado.
+              { text:'Extenderla a clientes de sala',  impact:{ LTV:+3,  satisfaction:+5,  risk:+1,  omnichannel_index:+14, online_activity:+6,  offline_activity:+8 } },
+              // Solo presencial: fideliza sala, baja online; riesgo bajo pero LTV corto plazo.
+              { text:'Sustituir por invitación presencial', impact:{ LTV:+2,  satisfaction:+7,  risk:-1,  omnichannel_index:+4,  online_activity:-8,  offline_activity:+14 } },
             ]
           },
           {
@@ -73,8 +78,10 @@
             title:'Registro cruzado en sala',
             text:'Regístrate online desde el local y recibe consumición.',
             options:[
-              { text:'Activar en 5 locales piloto',  impact:{ LTV:+7, satisfaction:+5, risk:+1, omnichannel_index:+12, online_activity:+6, offline_activity:+6 } },
-              { text:'Activar en toda la red',       impact:{ LTV:+10, satisfaction:+6, risk:+3, omnichannel_index:+15, online_activity:+8, offline_activity:+9 } },
+              // Piloto: impacto moderado y riesgo bajo.
+              { text:'Activar en 5 locales piloto',  impact:{ LTV:+4, satisfaction:+4, risk:+1,  omnichannel_index:+10, online_activity:+6, offline_activity:+6 } },
+              // Full rollout: más potente pero también riesgo (fraude/abuso promos) y canibalización si no se calibra.
+              { text:'Activar en toda la red',       impact:{ LTV:+6, satisfaction:+5, risk:+4,  omnichannel_index:+12, online_activity:+10, offline_activity:+8 } },
             ]
           },
         ]},
@@ -84,9 +91,12 @@
             title:'Cliente de sala descubre online',
             text:'Un habitual de sala descarga la app; baja su ritmo presencial.',
             options:[
-              { text:'Enviar bono personalizado',            impact:{ LTV:+6,  satisfaction:+3,  risk:+5,  omnichannel_index:-2, online_activity:+12, offline_activity:-10 } },
-              { text:'Combo sala + online (equilibrado)',    impact:{ LTV:+10, satisfaction:+8,  risk:+2,  omnichannel_index:+18, online_activity:+8,  offline_activity:+8 } },
-              { text:'No intervenir',                        impact:{ LTV:-3,  satisfaction:-6,  risk:+0,  omnichannel_index:-6,  online_activity:+0,  offline_activity:-8 } },
+              // Bono digital puro: recupera online, hunde sala y omni, sube riesgo (intensidad).
+              { text:'Enviar bono personalizado',            impact:{ LTV:+5,  satisfaction:+2,  risk:+6,  omnichannel_index:-6, online_activity:+14, offline_activity:-12 } },
+              // Paquete balanceado: mejor para omni y satisfacción; sube LTV por menor churn; riesgo controlado.
+              { text:'Combo sala + online (equilibrado)',    impact:{ LTV:+7,  satisfaction:+7,  risk:+1,  omnichannel_index:+16, online_activity:+8,  offline_activity:+8 } },
+              // No hacer nada: cae LTV y sat; omni se resiente; riesgo no sube pero pierdes cliente de sala.
+              { text:'No intervenir',                        impact:{ LTV:-4, satisfaction:-6, risk:+0,  omnichannel_index:-8,  online_activity:+0,  offline_activity:-10 } },
             ]
           },
           {
@@ -94,8 +104,8 @@
             title:'Tutorial en sala para jugar online',
             text:'Sesión guiada en local + consumición.',
             options:[
-              { text:'Hacerlo fin de semana',  impact:{ LTV:+6, satisfaction:+8, risk:+1, omnichannel_index:+14, online_activity:+8, offline_activity:+6 } },
-              { text:'Hacerlo laborables',     impact:{ LTV:+4, satisfaction:+5, risk:+1, omnichannel_index:+8,  online_activity:+6, offline_activity:+4 } },
+              { text:'Hacerlo fin de semana (alta afluencia)',  impact:{ LTV:+6, satisfaction:+8, risk:+2,  omnichannel_index:+12, online_activity:+8, offline_activity:+6 } },
+              { text:'Hacerlo laborables (baja fricción)',       impact:{ LTV:+4, satisfaction:+5, risk:+1,  omnichannel_index:+8,  online_activity:+6, offline_activity:+4 } },
             ]
           },
         ]},
@@ -105,8 +115,10 @@
             title:'Cross-Promo Doble Pista',
             text:'Juega online → copa en sala; juega en sala → spins online.',
             options:[
-              { text:'Segmentada por valor',  impact:{ LTV:+10, satisfaction:+8, risk:+2, omnichannel_index:+20, online_activity:+10, offline_activity:+10 } },
-              { text:'Para todos',            impact:{ LTV:+3,  satisfaction:+5, risk:+6, omnichannel_index:+6,  online_activity:+6,  offline_activity:+6 } },
+              // Segmentar por valor evita “promiscuidad de bono” y reduce riesgo.
+              { text:'Segmentada por valor',  impact:{ LTV:+9,  satisfaction:+7, risk:+1, omnichannel_index:+18, online_activity:+10, offline_activity:+10 } },
+              // Para todos: costo alto y sube riesgo de abuso; LTV sube menos neto.
+              { text:'Para todos',            impact:{ LTV:+3,  satisfaction:+5, risk:+6, omnichannel_index:+6,  online_activity:+8,  offline_activity:+6 } },
             ]
           },
           {
@@ -114,8 +126,10 @@
             title:'Evento F1 en sala (invitación desde app)',
             text:'Viewing party con ventajas para jugadores online.',
             options:[
-              { text:'VIPs online',      impact:{ LTV:+8, satisfaction:+8, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+12 } },
-              { text:'Activos 30 días',  impact:{ LTV:+6, satisfaction:+6, risk:+2, omnichannel_index:+8,  online_activity:+4,  offline_activity:+10 } },
+              // Enfocado a VIP: LTV y sat altos, riesgo bajo.
+              { text:'VIPs online',      impact:{ LTV:+8, satisfaction:+8, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
+              // Activos 30 días: alcance mayor pero algo de canibalización y riesgo promo.
+              { text:'Activos 30 días',  impact:{ LTV:+6, satisfaction:+6, risk:+3, omnichannel_index:+8,  online_activity:+5,  offline_activity:+10 } },
             ]
           },
         ]},
@@ -125,8 +139,8 @@
             title:'Jugador intensivo omnicanal',
             text:'Señales de juego intenso. ¿Qué haces?',
             options:[
-              { text:'Activar límites y enfriar',    impact:{ LTV:-6, satisfaction:+4,  risk:-14, omnichannel_index:+0,  online_activity:-8, offline_activity:-6 } },
-              { text:'No intervenir',                 impact:{ LTV:+2, satisfaction:-10, risk:+18,  omnichannel_index:-6, online_activity:+10, offline_activity:+8 } },
+              { text:'Activar límites y enfriar',    impact:{ LTV:-6, satisfaction:+4,  risk:-16, omnichannel_index:+0,  online_activity:-8, offline_activity:-6 } },
+              { text:'No intervenir',                 impact:{ LTV:+2, satisfaction:-12, risk:+20,  omnichannel_index:-8, online_activity:+10, offline_activity:+8 } },
             ]
           },
           {
@@ -135,7 +149,7 @@
             text:'Cliente solicita auto-exclusión.',
             options:[
               { text:'Proceder y ofrecer ayuda',         impact:{ LTV:-12, satisfaction:+10, risk:-24, omnichannel_index:+0,  online_activity:-15, offline_activity:-10 } },
-              { text:'Intentar retener (NO recomendado)',impact:{ LTV:+4,   satisfaction:-12, risk:+28, omnichannel_index:-8, online_activity:+10,  offline_activity:+6 } },
+              { text:'Intentar retener (NO recomendado)',impact:{ LTV:+4,   satisfaction:-14, risk:+30, omnichannel_index:-10, online_activity:+10,  offline_activity:+6 } },
             ]
           },
         ]},
@@ -145,8 +159,10 @@
             title:'Club VIP Omnicanal Everest',
             text:'Puntos válidos en sala y online.',
             options:[
-              { text:'Lanzamiento top 20%',  impact:{ LTV:+12, satisfaction:+12, risk:+2, omnichannel_index:+22, online_activity:+10, offline_activity:+10 } },
-              { text:'Lanzamiento general',  impact:{ LTV:+8,  satisfaction:+9,  risk:+3, omnichannel_index:+16, online_activity:+8,  offline_activity:+8 } },
+              // Top 20%: alto impacto y riesgo bajo por control de elegibilidad.
+              { text:'Lanzamiento top 20%',  impact:{ LTV:+10, satisfaction:+12, risk:+1, omnichannel_index:+20, online_activity:+10, offline_activity:+10 } },
+              // General: más alcance pero erosiona margen; sube algo riesgo incentivos.
+              { text:'Lanzamiento general',  impact:{ LTV:+6,  satisfaction:+9,  risk:+3, omnichannel_index:+14, online_activity:+8,  offline_activity:+8 } },
             ]
           },
           {
@@ -154,8 +170,8 @@
             title:'Viewing party Madrid–Barça',
             text:'Acceso gratuito a clientes online con cierto nivel.',
             options:[
-              { text:'Sólo Plata+',  impact:{ LTV:+8, satisfaction:+9, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
-              { text:'Abierta',       impact:{ LTV:+6, satisfaction:+7, risk:+2, omnichannel_index:+8,  online_activity:+4,  offline_activity:+10 } },
+              { text:'Sólo Plata+',  impact:{ LTV:+7, satisfaction:+9, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
+              { text:'Abierta',       impact:{ LTV:+5, satisfaction:+7, risk:+2, omnichannel_index:+8,  online_activity:+4,  offline_activity:+10 } },
             ]
           },
         ]},
@@ -163,43 +179,43 @@
 
       // === EVENTOS DINÁMICOS (rotan por nivel) ===
       const EVENTS = {
-        0: [ // Captación
+        0: [
           {
             key: 'clasico',
             title: '⚽ Clásico Madrid–Barça',
-            text: 'Viewing party en sala. Decide cómo activar para potenciar la omnicanalidad.',
+            text: 'Viewing party en sala para impulsar la mezcla de canales.',
             options: [
               { text: 'Invitar VIPs Online (cupo limitado)', impact:{ LTV:+6, satisfaction:+6, risk:-1, omnichannel_index:+8,  online_activity:+4,  offline_activity:+12 } },
-              { text: 'Abrirlo al público general',          impact:{ LTV:+3, satisfaction:+4, risk:+1,  omnichannel_index:+4,  online_activity:+3,  offline_activity:+8  } },
+              { text: 'Abrirlo al público general',          impact:{ LTV:+3, satisfaction:+4, risk:+2,  omnichannel_index:+4,  online_activity:+3,  offline_activity:+8  } },
               { text: 'Ignorar (no activar)',                 impact:{ LTV:+0, satisfaction:-2, risk:+0,  omnichannel_index:-2, online_activity:+0,  offline_activity:+0  } },
             ],
           },
         ],
-        1: [ // Activación
+        1: [
           {
             key: 'f1',
             title: '🏁 Carrera de F1',
             text: 'Gran Premio con mucha audiencia. ¿Activamos app y sala?',
             options: [
               { text: 'Porra en App + QR en sala', impact:{ LTV:+6, satisfaction:+4, risk:+2,  omnichannel_index:+10, online_activity:+6,  offline_activity:+10 } },
-              { text: 'Solo porra en App',         impact:{ LTV:+5, satisfaction:+3, risk:+2,  omnichannel_index:-2,  online_activity:+10, offline_activity:-6 } },
+              { text: 'Solo porra en App',         impact:{ LTV:+4, satisfaction:+2, risk:+2,  omnichannel_index:-4,  online_activity:+10, offline_activity:-8 } },
               { text: 'Ignorar',                    impact:{ LTV:-1, satisfaction:-2, risk:+0,  omnichannel_index:-2,  online_activity:+0,  offline_activity:+0 } },
             ],
           },
         ],
-        2: [ // Retención
+        2: [
           {
             key: 'tenis',
             title: '🎾 Masters de Tenis',
             text: 'Partido top. ¿Bundle sala+online o empuje digital?',
             options: [
               { text: 'Bundle: bebida en sala + free spins en App', impact:{ LTV:+7, satisfaction:+6, risk:+1,  omnichannel_index:+12, online_activity:+8,  offline_activity:+10 } },
-              { text: 'Solo streaming en App',                      impact:{ LTV:+3, satisfaction:+3, risk:+1,  omnichannel_index:-2,  online_activity:+10, offline_activity:-6 } },
+              { text: 'Solo streaming en App',                      impact:{ LTV:+3, satisfaction:+3, risk:+1,  omnichannel_index:-3,  online_activity:+10, offline_activity:-8 } },
               { text: 'Ignorar',                                     impact:{ LTV:-2, satisfaction:-3, risk:+0,  omnichannel_index:-3,  online_activity:+0,  offline_activity:+0  } },
             ],
           },
         ],
-        3: [ // Riesgo
+        3: [
           {
             key: 'alerta_riesgo',
             title: '⚠️ Alerta de patrón arriesgado',
@@ -211,7 +227,7 @@
             ],
           },
         ],
-        4: [ // Fidelización
+        4: [
           {
             key: 'concierto_local',
             title: '🎤 Concierto en Local',
@@ -299,7 +315,8 @@
         );
       }
 
-      function ScenarioCard({ levelTitle, scenario, onChoose }) {
+      // Botones exclusivos: si ya se eligió una opción, las demás quedan disabled
+      function ScenarioCard({ levelTitle, scenario, onChoose, selectedIndex }) {
         return (
           <div className="card">
             <div className="p-6 space-y-4">
@@ -307,9 +324,19 @@
               <h3 className="text-2xl md:text-3xl font-semibold text-red-400">{scenario.title}</h3>
               {scenario.text && <p className="text-gray-200/90">{scenario.text}</p>}
               <div className="grid md:grid-cols-3 gap-3">
-                {scenario.options.map((opt, i) => (
-                  <div key={i}><button className="btn btn-outline w-full text-left" onClick={() => onChoose(opt.impact)}>{opt.text}</button></div>
-                ))}
+                {scenario.options.map((opt, i) => {
+                  const picked = selectedIndex === i;
+                  return (
+                    <button
+                      key={i}
+                      className={`btn btn-outline text-left ${picked ? 'opt-picked' : ''}`}
+                      disabled={selectedIndex !== null && !picked}
+                      onClick={() => onChoose(opt.impact, i)}
+                    >
+                      {opt.text} {picked && '✓'}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -369,7 +396,7 @@
         const [scenarioIndex, setScenarioIndex] = useState(0);
         const [muted, setMuted] = useState(false);
 
-        // Estado inicial REALISTA (ninguno en 100)
+        // Estado inicial REALISTA
         const [ltv, setLtv] = useState(55);
         const [omni, setOmni] = useState(35);
         const [satisfaction, setSatisfaction] = useState(75);
@@ -381,16 +408,17 @@
         const [event, setEvent] = useState(null);
         const [showDebug, setShowDebug] = useState(false);
 
-        // Toggle de debug con la tecla D
+        // Exclusividad por escenario
+        const [selectedIndex, setSelectedIndex] = useState(null);
+
         useEffect(() => {
           const onKey = (e) => { if ((e.key || '').toLowerCase() === 'd') setShowDebug(s => !s); };
           window.addEventListener('keydown', onKey);
           return () => window.removeEventListener('keydown', onKey);
         }, []);
 
-        // ===== CÁLCULO ATÓMICO DE IMPACTOS =====
+        // Cálculo atómico
         const applyImpact = (impact) => {
-          // Lee estado actual
           let ltv1   = ltv;
           let sat1   = satisfaction;
           let risk1  = risk;
@@ -398,49 +426,50 @@
           let off1   = offline;
           let omni1  = omni;
 
-          // Aplica deltas base
           ltv1  = ltv1  + (impact.LTV ?? 0);
           sat1  = sat1  + (impact.satisfaction ?? 0);
           risk1 = risk1 + (impact.risk ?? 0);
           on1   = on1   + (impact.online_activity ?? 0);
           off1  = off1  + (impact.offline_activity ?? 0);
 
-          // Clamp de canales
+          // clamp canales
           on1  = clamp(on1,  0, 100);
           off1 = clamp(off1, 0, 100);
 
-          // Omnicanalidad: índice + equilibrio
+          // omnicanalidad (índice + balance)
           const omniIndex = (impact.omnichannel_index ?? 0);
-          const gap = Math.abs(on1 - off1);          // 0 perfecto, 100 desbalance total
-          const balanceComponent = 18 - gap * 0.20;  // ~ +18 a ~ -2
+          const gap = Math.abs(on1 - off1);
+          const balanceComponent = 18 - gap * 0.20;
           omni1 = clamp(omni1 + omniIndex + balanceComponent, 0, 100);
 
-          // Efecto del riesgo: erosiona un poco satisfacción y LTV si es alto
+          // efecto del riesgo
           if (risk1 > 60) sat1 -= (risk1 - 60) * 0.08;
           if (risk1 > 75) ltv1 -= (risk1 - 75) * 0.20;
 
-          // Clamp final de métricas 0..100
+          // clamp final
           ltv1  = clamp(ltv1,  0, 100);
           sat1  = clamp(sat1,  0, 100);
           risk1 = clamp(risk1, 0, 100);
-          omni1 = clamp(omni1, 0, 100);
 
-          // Commit en bloque
-          setLtv(ltv1);
-          setSatisfaction(sat1);
-          setRisk(risk1);
-          setOnline(on1);
-          setOffline(off1);
-          setOmni(omni1);
-
+          setLtv(ltv1); setSatisfaction(sat1); setRisk(risk1); setOnline(on1); setOffline(off1); setOmni(omni1);
           fx.play('decision', 0.6, muted);
           setPendingAdvance(true);
         };
 
+        const onChooseOnce = (impact, idx) => {
+          if (selectedIndex !== null) return; // ya elegida
+          setSelectedIndex(idx);
+          applyImpact(impact);
+        };
+
         const nextStep = () => {
           const moreScenarios = scenarioIndex + 1 < LEVELS[levelIndex].scenarios.length;
-          if (moreScenarios) { setScenarioIndex(i => i + 1); return; }
-
+          if (moreScenarios) {
+            setScenarioIndex(i => i + 1);
+            setSelectedIndex(null); // reset elección para el siguiente
+            return;
+          }
+          // Evento tras completar el nivel (en pares)
           const showEvent = (levelIndex + 1) % 2 === 0;
           if (showEvent) {
             const pool = EVENTS[levelIndex] || [];
@@ -460,6 +489,7 @@
           if (moreLevels) {
             setLevelIndex(l => l + 1);
             setScenarioIndex(0);
+            setSelectedIndex(null);
             setScreen('board');
           } else {
             setScreen('final');
@@ -472,8 +502,7 @@
           setScenarioIndex(0);
           setEvent(null);
           setPendingAdvance(false);
-
-          // Reestablecer a valores realistas iniciales
+          setSelectedIndex(null);
           setLtv(55); setOmni(35); setSatisfaction(75); setRisk(18); setOnline(45); setOffline(55);
         };
 
@@ -561,7 +590,8 @@
                   <ScenarioCard
                     levelTitle={LEVELS[levelIndex].title}
                     scenario={LEVELS[levelIndex].scenarios[scenarioIndex]}
-                    onChoose={(impact) => { applyImpact(impact); }}
+                    onChoose={onChooseOnce}
+                    selectedIndex={selectedIndex}
                   />
                   <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
                   <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
@@ -583,10 +613,12 @@
                     applyImpact(impact);
                     fx.play('decision', 0.6, muted);
                     setEvent(null);
+                    setSelectedIndex(null);
                     goNextLevel();
                   }}
                   onClose={() => {
                     setEvent(null);
+                    setSelectedIndex(null);
                     goNextLevel();
                   }}
                 />
@@ -594,7 +626,7 @@
 
               {screen === 'final' && (
                 <FinalScreen
-                  score={finalScore}
+                  score={Math.max(0, Math.round(ltv * (0.6 + 0.2*(omni/100) + 0.2*(satisfaction/100)) * ((100-risk)/100)))}
                   stats={{ ltv, omni, satisfaction, risk, online, offline }}
                   onRestart={resetGame}
                 />
