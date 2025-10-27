@@ -20,6 +20,7 @@
       .btn-outline:hover { border-color: #ef4444; }
       .btn:disabled { opacity:.5; cursor:not-allowed; }
       .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
+      .badge { font-size:.7rem; padding:.15rem .45rem; border:1px solid #4b5563; border-radius:.45rem; background:#111827; }
     </style>
 
     <!-- React + ReactDOM -->
@@ -46,18 +47,77 @@
       const rnd = (n) => Math.round(n);
 
       const fx = {
-        play: (name, vol=0.5, muted=false) => {
-          if (muted) return;
-          const a = new Audio('sounds/' + name + '.mp3');
-          a.volume = vol;
-          a.play().catch(() => {});
-        }
+        play: (name, vol=0.5, muted=false) => { if (muted) return; const a = new Audio('sounds/' + name + '.mp3'); a.volume = vol; a.play().catch(() => {}); }
       };
 
       // =======================
-      // CONTENIDO PRINCIPAL
+      // CONFIG MODO DIFÍCIL
       // =======================
-      // IMPACTOS con trade-offs: hay pérdidas reales si te sesgas a un canal o sube el riesgo.
+      const DIFFICULTY = {
+        posScale: 0.8,         // todos los impactos positivos se reducen un 20% de base
+        negScale: 1.1,         // los negativos pegan un 10% más
+        // Soft caps por nivel (hasta llegar a C4/Cima). Si superas el cap, el extra se reduce con mucha fricción.
+        softCaps: {
+          ltv:           [78, 86, 92, 96, 100],
+          satisfaction:  [85, 90, 94, 97, 100],
+          omni:          [82, 88, 93, 97, 100],
+          online:        [88, 92, 96, 98, 100],
+          offline:       [88, 92, 96, 98, 100],
+          risk:          [100,100,100,100,100], // sin cap al alza (pero se clampa 0..100)
+        },
+        // Penalización por encadenar el mismo sesgo de canal
+        fatiguePenalty: { omni: 4, sat: 3, ltv: 2, risk: 4 },
+        // A partir de 80 empieza el "rendimiento decreciente" en positivos
+        diminishingStart: 80
+      };
+
+      const softCapFor = (metric, levelIndex) => {
+        const caps = DIFFICULTY.softCaps[metric] || [100,100,100,100,100];
+        return caps[Math.min(levelIndex, caps.length-1)];
+      };
+
+      // Aplica rendimiento decreciente a positivos con soft caps por nivel
+      function applyPosWithCaps(current, delta, levelCap) {
+        if (delta <= 0) return delta;
+        // Escala base de dificultad
+        let d = delta * DIFFICULTY.posScale;
+
+        // Rendimiento decreciente: si ya estás alto, cada punto cuesta más
+        const start = DIFFICULTY.diminishingStart;
+        if (current >= start) {
+          // factor entre 1..0 según lo cerca de 100
+          const factor = clamp(1 - ((current - start) / (100 - start)), 0.15, 1);
+          d *= factor;
+        }
+
+        // Soft cap por nivel: a partir del cap el extra se reduce mucho
+        if (current >= levelCap) {
+          d *= 0.2; // casi no subes si ya estás por encima del cap del nivel
+        } else if (current + d > levelCap) {
+          // si el resultado se pasa, recorta extra a la mitad
+          const extra = (current + d) - levelCap;
+          d -= extra * 0.5;
+        }
+        return d;
+      }
+
+      function applyNegWithDifficulty(delta) {
+        if (delta >= 0) return delta;
+        return delta * DIFFICULTY.negScale; // los negativos castigan un poco más
+      }
+
+      // Detecta sesgo de una acción (para fatiga)
+      function biasOfImpact(impact) {
+        const on = impact.online_activity ?? 0;
+        const off = impact.offline_activity ?? 0;
+        if (on - off > 6) return 'online';
+        if (off - on > 6) return 'offline';
+        return 'balanced';
+      }
+
+      // =======================
+      // CONTENIDO: CARTAS
+      // =======================
       const LEVELS = [
         { key:'captacion', title:'Campamento Base — Captación', scenarios: [
           {
@@ -65,11 +125,8 @@
             title:'Haz Match con tu Slot Ideal',
             text:'Promoción online de 5€/día durante 7 días.',
             options:[
-              // Sesgo muy digital: arranca online pero “canibaliza” sala, baja omni y sube algo riesgo.
               { text:'Lanzarla solo online',           impact:{ LTV:+4,  satisfaction:+1,  risk:+3,  omnichannel_index:-6, online_activity:+12, offline_activity:-10 } },
-              // Omnicanal equilibrado: sube omni, on y off; coste mayor -> LTV sube menos; riesgo controlado.
               { text:'Extenderla a clientes de sala',  impact:{ LTV:+3,  satisfaction:+5,  risk:+1,  omnichannel_index:+14, online_activity:+6,  offline_activity:+8 } },
-              // Solo presencial: fideliza sala, baja online; riesgo bajo pero LTV corto plazo.
               { text:'Sustituir por invitación presencial', impact:{ LTV:+2,  satisfaction:+7,  risk:-1,  omnichannel_index:+4,  online_activity:-8,  offline_activity:+14 } },
             ]
           },
@@ -78,9 +135,7 @@
             title:'Registro cruzado en sala',
             text:'Regístrate online desde el local y recibe consumición.',
             options:[
-              // Piloto: impacto moderado y riesgo bajo.
-              { text:'Activar en 5 locales piloto',  impact:{ LTV:+4, satisfaction:+4, risk:+1,  omnichannel_index:+10, online_activity:+6, offline_activity:+6 } },
-              // Full rollout: más potente pero también riesgo (fraude/abuso promos) y canibalización si no se calibra.
+              { text:'Activar en 5 locales piloto',  impact:{ LTV:+4, satisfaction:+4, risk:+1,  omnichannel_index:+10, online_activity:+6,  offline_activity:+6 } },
               { text:'Activar en toda la red',       impact:{ LTV:+6, satisfaction:+5, risk:+4,  omnichannel_index:+12, online_activity:+10, offline_activity:+8 } },
             ]
           },
@@ -91,11 +146,8 @@
             title:'Cliente de sala descubre online',
             text:'Un habitual de sala descarga la app; baja su ritmo presencial.',
             options:[
-              // Bono digital puro: recupera online, hunde sala y omni, sube riesgo (intensidad).
               { text:'Enviar bono personalizado',            impact:{ LTV:+5,  satisfaction:+2,  risk:+6,  omnichannel_index:-6, online_activity:+14, offline_activity:-12 } },
-              // Paquete balanceado: mejor para omni y satisfacción; sube LTV por menor churn; riesgo controlado.
               { text:'Combo sala + online (equilibrado)',    impact:{ LTV:+7,  satisfaction:+7,  risk:+1,  omnichannel_index:+16, online_activity:+8,  offline_activity:+8 } },
-              // No hacer nada: cae LTV y sat; omni se resiente; riesgo no sube pero pierdes cliente de sala.
               { text:'No intervenir',                        impact:{ LTV:-4, satisfaction:-6, risk:+0,  omnichannel_index:-8,  online_activity:+0,  offline_activity:-10 } },
             ]
           },
@@ -115,9 +167,7 @@
             title:'Cross-Promo Doble Pista',
             text:'Juega online → copa en sala; juega en sala → spins online.',
             options:[
-              // Segmentar por valor evita “promiscuidad de bono” y reduce riesgo.
               { text:'Segmentada por valor',  impact:{ LTV:+9,  satisfaction:+7, risk:+1, omnichannel_index:+18, online_activity:+10, offline_activity:+10 } },
-              // Para todos: costo alto y sube riesgo de abuso; LTV sube menos neto.
               { text:'Para todos',            impact:{ LTV:+3,  satisfaction:+5, risk:+6, omnichannel_index:+6,  online_activity:+8,  offline_activity:+6 } },
             ]
           },
@@ -126,9 +176,7 @@
             title:'Evento F1 en sala (invitación desde app)',
             text:'Viewing party con ventajas para jugadores online.',
             options:[
-              // Enfocado a VIP: LTV y sat altos, riesgo bajo.
               { text:'VIPs online',      impact:{ LTV:+8, satisfaction:+8, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
-              // Activos 30 días: alcance mayor pero algo de canibalización y riesgo promo.
               { text:'Activos 30 días',  impact:{ LTV:+6, satisfaction:+6, risk:+3, omnichannel_index:+8,  online_activity:+5,  offline_activity:+10 } },
             ]
           },
@@ -159,9 +207,7 @@
             title:'Club VIP Omnicanal Everest',
             text:'Puntos válidos en sala y online.',
             options:[
-              // Top 20%: alto impacto y riesgo bajo por control de elegibilidad.
               { text:'Lanzamiento top 20%',  impact:{ LTV:+10, satisfaction:+12, risk:+1, omnichannel_index:+20, online_activity:+10, offline_activity:+10 } },
-              // General: más alcance pero erosiona margen; sube algo riesgo incentivos.
               { text:'Lanzamiento general',  impact:{ LTV:+6,  satisfaction:+9,  risk:+3, omnichannel_index:+14, online_activity:+8,  offline_activity:+8 } },
             ]
           },
@@ -180,69 +226,49 @@
       // === EVENTOS DINÁMICOS (rotan por nivel) ===
       const EVENTS = {
         0: [
-          {
-            key: 'clasico',
-            title: '⚽ Clásico Madrid–Barça',
-            text: 'Viewing party en sala para impulsar la mezcla de canales.',
-            options: [
-              { text: 'Invitar VIPs Online (cupo limitado)', impact:{ LTV:+6, satisfaction:+6, risk:-1, omnichannel_index:+8,  online_activity:+4,  offline_activity:+12 } },
-              { text: 'Abrirlo al público general',          impact:{ LTV:+3, satisfaction:+4, risk:+2,  omnichannel_index:+4,  online_activity:+3,  offline_activity:+8  } },
-              { text: 'Ignorar (no activar)',                 impact:{ LTV:+0, satisfaction:-2, risk:+0,  omnichannel_index:-2, online_activity:+0,  offline_activity:+0  } },
-            ],
-          },
+          { key:'clasico', title:'⚽ Clásico Madrid–Barça', text:'Viewing party en sala para impulsar la mezcla de canales.',
+            options:[
+              { text:'Invitar VIPs Online (cupo limitado)', impact:{ LTV:+6, satisfaction:+6, risk:-1, omnichannel_index:+8,  online_activity:+4,  offline_activity:+12 } },
+              { text:'Abrirlo al público general',          impact:{ LTV:+3, satisfaction:+4, risk:+2,  omnichannel_index:+4,  online_activity:+3,  offline_activity:+8  } },
+              { text:'Ignorar (no activar)',                 impact:{ LTV:+0, satisfaction:-2, risk:+0,  omnichannel_index:-2, online_activity:+0,  offline_activity:+0  } },
+            ]},
         ],
         1: [
-          {
-            key: 'f1',
-            title: '🏁 Carrera de F1',
-            text: 'Gran Premio con mucha audiencia. ¿Activamos app y sala?',
-            options: [
-              { text: 'Porra en App + QR en sala', impact:{ LTV:+6, satisfaction:+4, risk:+2,  omnichannel_index:+10, online_activity:+6,  offline_activity:+10 } },
-              { text: 'Solo porra en App',         impact:{ LTV:+4, satisfaction:+2, risk:+2,  omnichannel_index:-4,  online_activity:+10, offline_activity:-8 } },
-              { text: 'Ignorar',                    impact:{ LTV:-1, satisfaction:-2, risk:+0,  omnichannel_index:-2,  online_activity:+0,  offline_activity:+0 } },
-            ],
-          },
+          { key:'f1', title:'🏁 Carrera de F1', text:'Gran Premio con mucha audiencia. ¿Activamos app y sala?',
+            options:[
+              { text:'Porra en App + QR en sala', impact:{ LTV:+6, satisfaction:+4, risk:+2,  omnichannel_index:+10, online_activity:+6,  offline_activity:+10 } },
+              { text:'Solo porra en App',         impact:{ LTV:+4, satisfaction:+2, risk:+2,  omnichannel_index:-4,  online_activity:+10, offline_activity:-8 } },
+              { text:'Ignorar',                    impact:{ LTV:-1, satisfaction:-2, risk:+0,  omnichannel_index:-2,  online_activity:+0,  offline_activity:+0 } },
+            ]},
         ],
         2: [
-          {
-            key: 'tenis',
-            title: '🎾 Masters de Tenis',
-            text: 'Partido top. ¿Bundle sala+online o empuje digital?',
-            options: [
-              { text: 'Bundle: bebida en sala + free spins en App', impact:{ LTV:+7, satisfaction:+6, risk:+1,  omnichannel_index:+12, online_activity:+8,  offline_activity:+10 } },
-              { text: 'Solo streaming en App',                      impact:{ LTV:+3, satisfaction:+3, risk:+1,  omnichannel_index:-3,  online_activity:+10, offline_activity:-8 } },
-              { text: 'Ignorar',                                     impact:{ LTV:-2, satisfaction:-3, risk:+0,  omnichannel_index:-3,  online_activity:+0,  offline_activity:+0  } },
-            ],
-          },
+          { key:'tenis', title:'🎾 Masters de Tenis', text:'Partido top. ¿Bundle sala+online o empuje digital?',
+            options:[
+              { text:'Bundle: bebida en sala + free spins en App', impact:{ LTV:+7, satisfaction:+6, risk:+1,  omnichannel_index:+12, online_activity:+8,  offline_activity:+10 } },
+              { text:'Solo streaming en App',                      impact:{ LTV:+3, satisfaction:+3, risk:+1,  omnichannel_index:-3,  online_activity:+10, offline_activity:-8 } },
+              { text:'Ignorar',                                     impact:{ LTV:-2, satisfaction:-3, risk:+0,  omnichannel_index:-3,  online_activity:+0,  offline_activity:+0  } },
+            ]},
         ],
         3: [
-          {
-            key: 'alerta_riesgo',
-            title: '⚠️ Alerta de patrón arriesgado',
-            text: 'Detección de sesión intensa en múltiples canales.',
-            options: [
-              { text: 'Aplicar límites y cool-off',      impact:{ LTV:-8, satisfaction:+4,  risk:-18, omnichannel_index:+0, online_activity:-10, offline_activity:-8 } },
-              { text: 'Contactar con mensaje de apoyo',  impact:{ LTV:-3, satisfaction:+6,  risk:-10, omnichannel_index:+2, online_activity:-4,  offline_activity:-3 } },
-              { text: 'No intervenir (no recomendado)',  impact:{ LTV:+2, satisfaction:-8, risk:+16,  omnichannel_index:-6, online_activity:+8,   offline_activity:+6 } },
-            ],
-          },
+          { key:'alerta_riesgo', title:'⚠️ Alerta de patrón arriesgado', text:'Detección de sesión intensa en múltiples canales.',
+            options:[
+              { text:'Aplicar límites y cool-off',      impact:{ LTV:-8, satisfaction:+4,  risk:-18, omnichannel_index:+0, online_activity:-10, offline_activity:-8 } },
+              { text:'Contactar con mensaje de apoyo',  impact:{ LTV:-3, satisfaction:+6,  risk:-10, omnichannel_index:+2, online_activity:-4,  offline_activity:-3 } },
+              { text:'No intervenir (no recomendado)',  impact:{ LTV:+2, satisfaction:-8, risk:+16,  omnichannel_index:-6, online_activity:+8,   offline_activity:+6 } },
+            ]},
         ],
         4: [
-          {
-            key: 'concierto_local',
-            title: '🎤 Concierto en Local',
-            text: 'Evento con cupos limitados. ¿A quién invitamos desde la App?',
-            options: [
-              { text: 'VIPs + Plata+',     impact:{ LTV:+10, satisfaction:+10, risk:+0, omnichannel_index:+12, online_activity:+6,  offline_activity:+14 } },
-              { text: 'Invitación abierta', impact:{ LTV:+6,  satisfaction:+6,  risk:+1, omnichannel_index:+6,  online_activity:+4,  offline_activity:+10 } },
-              { text: 'No activar',         impact:{ LTV:+0,  satisfaction:-2,  risk:+0, omnichannel_index:-2,  online_activity:+0,  offline_activity:+0  } },
-            ],
-          },
+          { key:'concierto_local', title:'🎤 Concierto en Local', text:'Evento con cupos limitados. ¿A quién invitamos desde la App?',
+            options:[
+              { text:'VIPs + Plata+',     impact:{ LTV:+10, satisfaction:+10, risk:+0, omnichannel_index:+12, online_activity:+6,  offline_activity:+14 } },
+              { text:'Invitación abierta', impact:{ LTV:+6,  satisfaction:+6,  risk:+1, omnichannel_index:+6,  online_activity:+4,  offline_activity:+10 } },
+              { text:'No activar',         impact:{ LTV:+0,  satisfaction:-2,  risk:+0, omnichannel_index:-2,  online_activity:+0,  offline_activity:+0  } },
+            ]},
         ],
       };
 
       // =======================
-      // UI COMPONENTES
+      // UI
       // =======================
       const ProgressBar = ({ value=0 }) => {
         const v = clamp(Math.round(value), 0, 100);
@@ -277,24 +303,25 @@
         );
       }
 
-      function DebugPanel({ show, ltv, omni, satisfaction, risk, online, offline }) {
+      function DebugPanel({ show, ltv, omni, satisfaction, risk, online, offline, biasStreak, lastBias, caps }) {
         if (!show) return null;
         return (
           <div className="mt-4 text-xs text-gray-300/90 bg-white/5 rounded-lg p-3">
             <div className="flex flex-wrap gap-3">
-              <span>💰 LTV: <b>{rnd(ltv)}</b></span>
-              <span>🔄 Omni: <b>{rnd(omni)}%</b></span>
-              <span>❤️ Sat: <b>{rnd(satisfaction)}%</b></span>
+              <span>💰 LTV: <b>{rnd(ltv)}</b> <span class="badge">cap {caps.ltv}</span></span>
+              <span>🔄 Omni: <b>{rnd(omni)}%</b> <span class="badge">cap {caps.omni}%</span></span>
+              <span>❤️ Sat: <b>{rnd(satisfaction)}%</b> <span class="badge">cap {caps.satisfaction}%</span></span>
               <span>⚠️ Riesgo: <b>{rnd(risk)}%</b></span>
-              <span>🏪 Sala: <b>{rnd(offline)}%</b></span>
-              <span>💻 Online: <b>{rnd(online)}%</b></span>
+              <span>🏪 Sala: <b>{rnd(offline)}%</b> <span class="badge">cap {caps.offline}%</span></span>
+              <span>💻 Online: <b>{rnd(online)}%</b> <span class="badge">cap {caps.online}%</span></span>
+              <span>🎯 Sesgo: <b>{lastBias}</b> (racha {biasStreak})</span>
             </div>
             <p className="mt-2 opacity-80">Pulsa <b>D</b> para ocultar/mostrar este panel.</p>
           </div>
         );
       }
 
-      function Board({ levelIndex, onStartScenario, ltv, omni, satisfaction, risk, online, offline, showDebug }) {
+      function Board({ levelIndex, onStartScenario, ltv, omni, satisfaction, risk, online, offline, showDebug, caps, biasStreak, lastBias }) {
         return (
           <div className="card">
             <div className="p-8">
@@ -308,14 +335,13 @@
                 ))}
               </div>
               <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
-              <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+              <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} biasStreak={biasStreak} lastBias={lastBias} caps={caps}/>
               <div className="flex justify-center mt-6"><button className="btn btn-primary" onClick={onStartScenario}>Abrir escenario</button></div>
             </div>
           </div>
         );
       }
 
-      // Botones exclusivos: si ya se eligió una opción, las demás quedan disabled
       function ScenarioCard({ levelTitle, scenario, onChoose, selectedIndex }) {
         return (
           <div className="card">
@@ -388,7 +414,7 @@
       );
 
       // =======================
-      // APP PRINCIPAL
+      // APP
       // =======================
       function App() {
         const [screen, setScreen] = useState('lobby');
@@ -399,8 +425,8 @@
         // Estado inicial REALISTA
         const [ltv, setLtv] = useState(55);
         const [omni, setOmni] = useState(35);
-        const [satisfaction, setSatisfaction] = useState(75);
-        const [risk, setRisk] = useState(18);
+        const [satisfaction, setSatisfaction] = useState(72);
+        const [risk, setRisk] = useState(20);
         const [online, setOnline] = useState(45);
         const [offline, setOffline] = useState(55);
 
@@ -411,13 +437,25 @@
         // Exclusividad por escenario
         const [selectedIndex, setSelectedIndex] = useState(null);
 
+        // Sesgo y fatiga
+        const [lastBias, setLastBias] = useState('balanced');
+        const [biasStreak, setBiasStreak] = useState(0);
+
         useEffect(() => {
           const onKey = (e) => { if ((e.key || '').toLowerCase() === 'd') setShowDebug(s => !s); };
           window.addEventListener('keydown', onKey);
           return () => window.removeEventListener('keydown', onKey);
         }, []);
 
-        // Cálculo atómico
+        const caps = {
+          ltv:          softCapFor('ltv', levelIndex),
+          satisfaction: softCapFor('satisfaction', levelIndex),
+          omni:         softCapFor('omni', levelIndex),
+          online:       softCapFor('online', levelIndex),
+          offline:      softCapFor('offline', levelIndex)
+        };
+
+        // Motor con dificultad
         const applyImpact = (impact) => {
           let ltv1   = ltv;
           let sat1   = satisfaction;
@@ -426,32 +464,78 @@
           let off1   = offline;
           let omni1  = omni;
 
-          ltv1  = ltv1  + (impact.LTV ?? 0);
-          sat1  = sat1  + (impact.satisfaction ?? 0);
-          risk1 = risk1 + (impact.risk ?? 0);
-          on1   = on1   + (impact.online_activity ?? 0);
-          off1  = off1  + (impact.offline_activity ?? 0);
+          // 1) Deltas originales
+          let d = {
+            LTV: (impact.LTV ?? 0),
+            SAT: (impact.satisfaction ?? 0),
+            RISK:(impact.risk ?? 0),
+            ON:  (impact.online_activity ?? 0),
+            OFF: (impact.offline_activity ?? 0),
+            OMNI:(impact.omnichannel_index ?? 0)
+          };
 
-          // clamp canales
+          // 2) Aplica rendimientos decrecientes y soft caps a POSITIVOS
+          d.LTV  = (d.LTV  >=0) ? applyPosWithCaps(ltv1,  d.LTV,  caps.ltv)          : applyNegWithDifficulty(d.LTV);
+          d.SAT  = (d.SAT  >=0) ? applyPosWithCaps(sat1,  d.SAT,  caps.satisfaction) : applyNegWithDifficulty(d.SAT);
+          d.ON   = (d.ON   >=0) ? applyPosWithCaps(on1,   d.ON,   caps.online)       : applyNegWithDifficulty(d.ON);
+          d.OFF  = (d.OFF  >=0) ? applyPosWithCaps(off1,  d.OFF,  caps.offline)      : applyNegWithDifficulty(d.OFF);
+          d.OMNI = (d.OMNI >=0) ? applyPosWithCaps(omni1, d.OMNI, caps.omni)         : applyNegWithDifficulty(d.OMNI);
+          // riesgo no tiene cap, pero sí aumento de severidad si hay sesgo (más abajo)
+          d.RISK = (d.RISK >=0) ? d.RISK * 1.0 : d.RISK * 1.1;
+
+          // 3) Aplica deltas base
+          ltv1  = ltv1  + d.LTV;
+          sat1  = sat1  + d.SAT;
+          risk1 = risk1 + d.RISK;
+          on1   = on1   + d.ON;
+          off1  = off1  + d.OFF;
+
+          // 4) Clamp canales
           on1  = clamp(on1,  0, 100);
           off1 = clamp(off1, 0, 100);
 
-          // omnicanalidad (índice + balance)
-          const omniIndex = (impact.omnichannel_index ?? 0);
+          // 5) Omnicanalidad = índice + equilibrio
           const gap = Math.abs(on1 - off1);
-          const balanceComponent = 18 - gap * 0.20;
-          omni1 = clamp(omni1 + omniIndex + balanceComponent, 0, 100);
+          const balanceComponent = 18 - gap * 0.20; // +18 a ~-2
+          omni1 = omni1 + d.OMNI + balanceComponent;
 
-          // efecto del riesgo
+          // 6) Penalización por sesgo encadenado
+          const thisBias = biasOfImpact(impact);
+          if (thisBias === lastBias && thisBias !== 'balanced') {
+            // aumenta racha
+            const nextStreak = biasStreak + 1;
+            if (nextStreak >= 2) { // a partir de 2 decisiones sesgadas seguidas
+              omni1 -= DIFFICULTY.fatiguePenalty.omni;
+              sat1  -= DIFFICULTY.fatiguePenalty.sat;
+              ltv1  -= DIFFICULTY.fatiguePenalty.ltv;
+              risk1 += DIFFICULTY.fatiguePenalty.risk;
+            }
+            setBiasStreak(nextStreak);
+          } else {
+            setBiasStreak(thisBias === 'balanced' ? 0 : 1);
+            setLastBias(thisBias);
+          }
+
+          // 7) Contrapeso por “crecer demasiado rápido” en digital o sala
+          if (on1 > 95 && off1 < 60) { risk1 += 3; omni1 -= 3; }
+          if (off1 > 95 && on1  < 60) { risk1 += 3; omni1 -= 3; }
+
+          // 8) Efecto del riesgo alto sobre satisfacción y LTV
           if (risk1 > 60) sat1 -= (risk1 - 60) * 0.08;
           if (risk1 > 75) ltv1 -= (risk1 - 75) * 0.20;
 
-          // clamp final
-          ltv1  = clamp(ltv1,  0, 100);
-          sat1  = clamp(sat1,  0, 100);
+          // 9) Clamp final + soft cap duro (no 100 en niveles bajos)
+          const hardCap = (levelIndex < 3) ? 98 : 100; // hasta Camp 3 no llegas a 100
+          ltv1  = clamp(ltv1,  0, hardCap);
+          sat1  = clamp(sat1,  0, hardCap);
           risk1 = clamp(risk1, 0, 100);
+          omni1 = clamp(omni1, 0, hardCap);
+          on1   = clamp(on1,  0, hardCap);
+          off1  = clamp(off1, 0, hardCap);
 
+          // Commit
           setLtv(ltv1); setSatisfaction(sat1); setRisk(risk1); setOnline(on1); setOffline(off1); setOmni(omni1);
+
           fx.play('decision', 0.6, muted);
           setPendingAdvance(true);
         };
@@ -466,10 +550,9 @@
           const moreScenarios = scenarioIndex + 1 < LEVELS[levelIndex].scenarios.length;
           if (moreScenarios) {
             setScenarioIndex(i => i + 1);
-            setSelectedIndex(null); // reset elección para el siguiente
+            setSelectedIndex(null);
             return;
           }
-          // Evento tras completar el nivel (en pares)
           const showEvent = (levelIndex + 1) % 2 === 0;
           if (showEvent) {
             const pool = EVENTS[levelIndex] || [];
@@ -503,7 +586,8 @@
           setEvent(null);
           setPendingAdvance(false);
           setSelectedIndex(null);
-          setLtv(55); setOmni(35); setSatisfaction(75); setRisk(18); setOnline(45); setOffline(55);
+          setLtv(55); setOmni(35); setSatisfaction(72); setRisk(20); setOnline(45); setOffline(55);
+          setLastBias('balanced'); setBiasStreak(0);
         };
 
         const finalScore = useMemo(() => {
@@ -580,7 +664,7 @@
                     levelIndex={levelIndex}
                     onStartScenario={() => setScreen('scenario')}
                     ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline}
-                    showDebug={showDebug}
+                    showDebug={showDebug} caps={caps} biasStreak={biasStreak} lastBias={lastBias}
                   />
                 </div>
               )}
@@ -594,7 +678,7 @@
                     selectedIndex={selectedIndex}
                   />
                   <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
-                  <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+                  <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} biasStreak={biasStreak} lastBias={lastBias} caps={caps}/>
                   {pendingAdvance && (
                     <div className="flex justify-center mt-4">
                       <button className="btn btn-primary" onClick={() => { setPendingAdvance(false); nextStep(); }}>
@@ -605,13 +689,11 @@
                 </div>
               )}
 
-              {/* EVENTO DINÁMICO */}
               {event && (
                 <EventModal
                   event={event}
                   onChoose={(impact) => {
-                    applyImpact(impact);
-                    fx.play('decision', 0.6, muted);
+                    onChooseOnce(impact, 0); // se aplica con el mismo motor y exclusividad
                     setEvent(null);
                     setSelectedIndex(null);
                     goNextLevel();
