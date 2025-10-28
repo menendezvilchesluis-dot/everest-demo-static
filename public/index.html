@@ -1,614 +1,792 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Programa Everest — Juego + Simulador</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Juego prototipo + simulador de variables del Programa Everest (casino)." />
-  <style>
-    :root { --card: 18 24 40; --ink: 245 246 248; }
-    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.08); }
-    .metric-shadow { box-shadow: 0 8px 24px rgba(0,0,0,.25); }
-    input[type="range"] { accent-color: #60a5fa; }
-    .btn { @apply px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700; }
-    .btn-primary { @apply px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500; }
-  </style>
-</head>
-<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-slate-100">
-  <header class="px-6 md:px-10 py-6 flex items-center justify-between">
-    <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Programa <span class="text-blue-300">Everest</span> · Juego + Simulador</h1>
-    <div class="flex items-center gap-2 text-xs md:text-sm">
-      <button id="btnReset" class="btn">Restablecer</button>
-      <button id="btnExport" class="btn-primary">Exportar JSON</button>
-      <label class="btn cursor-pointer">Importar JSON
-        <input id="fileImport" type="file" accept="application/json" class="hidden" />
-      </label>
-    </div>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pause & Play — Everest Omnicanal (Juego + Éxito)</title>
+    <link rel="icon" href="data:,">
 
-  <main class="px-6 md:px-10 pb-24">
-    <!-- NAV -->
-    <nav class="glass rounded-2xl p-2 inline-flex gap-2 text-sm mb-6">
-      <button data-tab="juego" class="tab px-4 py-2 rounded-xl bg-blue-600">Juego</button>
-      <button data-tab="simulador" class="tab px-4 py-2 rounded-xl hover:bg-slate-800">Simulador</button>
-    </nav>
+    <!-- Tailwind (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root { color-scheme: dark; }
+      body { background: linear-gradient(to bottom, #111827, #0b0f19, #000); color: #fff; }
+      .card { border: 1px solid #374151; background: rgba(31,41,55,0.7); border-radius: 1rem; }
+      .progress { height: 8px; border-radius: 9999px; background: #374151; overflow: hidden }
+      .progress > div { height: 100%; background: #ef4444; transition: width .25s ease; }
+      .btn { border-radius: .75rem; font-weight: 600; padding: .6rem 1rem; }
+      .btn-primary { background: #dc2626; } .btn-primary:hover { background: #b91c1c; }
+      .btn-secondary { background: #374151; } .btn-outline { border: 1px solid #4b5563; }
+      .btn-outline:hover { border-color: #ef4444; }
+      .btn:disabled { opacity:.5; cursor:not-allowed; }
+      .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
+      .badge { font-size:.7rem; padding:.15rem .45rem; border:1px solid #4b5563; border-radius:.45rem; background:#111827; }
+    </style>
 
-    <!-- JUEGO -->
-    <section id="tab-juego" class="grid lg:grid-cols-3 gap-6">
-      <!-- Panel estado del juego -->
-      <div class="lg:col-span-2 glass rounded-3xl p-6 metric-shadow">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-semibold">Operación diaria</h2>
-          <div class="flex gap-2">
-            <button id="btnTick" class="btn-primary">Avanzar 1 día</button>
-            <button id="btnTick7" class="btn">Avanzar 7 días</button>
-          </div>
-        </div>
+    <!-- React + ReactDOM -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 
-        <div class="grid md:grid-cols-2 gap-4 mb-6">
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Día</div>
-            <div id="day" class="text-3xl font-bold">1</div>
-          </div>
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Caja (€)</div>
-            <div id="cash" class="text-3xl font-bold">0</div>
-          </div>
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Jugadores activos</div>
-            <div id="players" class="text-3xl font-bold">0</div>
-          </div>
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Ingresos diarios estimados</div>
-            <div id="revEst" class="text-3xl font-bold">0</div>
-          </div>
-        </div>
+    <!-- Framer Motion (fallback si no carga) -->
+    <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
 
-        <div class="grid md:grid-cols-2 gap-4 mb-6">
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Reputación (Popularidad)</div>
-            <div class="flex items-center gap-3">
-              <div id="popVal" class="text-3xl font-bold">0</div>
-              <div class="h-2 w-full rounded bg-slate-800 overflow-hidden"><div id="popBar" class="h-full bg-blue-500" style="width:0%"></div></div>
-            </div>
-          </div>
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <div class="text-xs text-slate-400">Riesgo</div>
-            <div class="flex items-center gap-3">
-              <div id="riskVal" class="text-3xl font-bold">0</div>
-              <div class="h-2 w-full rounded bg-slate-800 overflow-hidden"><div id="riskBar" class="h-full bg-blue-500" style="width:0%"></div></div>
-            </div>
-          </div>
-        </div>
+    <!-- Babel (JSX en navegador) -->
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body>
+    <div class="p-6 md:p-10"><div id="root"></div></div>
 
-        <div class="grid md:grid-cols-2 gap-4">
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <h3 class="font-semibold mb-2">Acciones rápidas</h3>
-            <div class="flex flex-wrap gap-2 text-sm">
-              <button class="btn" id="actOmni">Mejorar Omnicanalidad (+5) · Coste 10k€</button>
-              <button class="btn" id="actAtencion">Mejorar Atención al cliente (+5 Satisf) · Coste 8k€</button>
-              <button class="btn" id="actSeguridad">Reforzar Seguridad (−7 Riesgo) · Coste 6k€</button>
-              <button class="btn" id="actBeneficios">Ajustar Beneficios (−5 Margen, +6 Satisf)</button>
-            </div>
-            <p class="text-xs text-slate-400 mt-2">Consejo: las acciones impactan las mismas variables que usa el simulador, todo está conectado.</p>
-          </div>
-          <div class="rounded-2xl bg-slate-900 p-4">
-            <h3 class="font-semibold mb-2">Campañas</h3>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <button data-scenario="colaboradores" class="scenario btn">Sala con colaboradores (Coste 5k€)</button>
-              <button data-scenario="tv" class="scenario btn">Campaña en TV (Coste 40k€)</button>
-              <button data-scenario="twitch" class="scenario btn">Streamers en Twitch (Coste 15k€)</button>
-              <button data-scenario="buscadores" class="scenario btn">Buscadores (Coste 8k€)</button>
-            </div>
-            <div id="scenarioNote" class="text-xs text-slate-400 mt-2 hidden"></div>
-          </div>
-        </div>
+    <script type="text/babel" data-presets="react">
+      // ====== Fallback por si Framer Motion no carga ======
+      const FM = window['framer-motion'] || {};
+      const motion = FM.motion || new Proxy({}, { get: () => (props) => React.createElement('div', props) });
+      const AnimatePresence = FM.AnimatePresence || (({children}) => children);
 
-        <div class="mt-6 rounded-2xl bg-slate-900 p-4 max-h-64 overflow-auto">
-          <h3 class="font-semibold mb-2">Eventos</h3>
-          <ul id="log" class="text-sm space-y-2"></ul>
-        </div>
-      </div>
+      const { useState, useMemo, useEffect } = React;
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const rnd = (n) => Math.round(n);
 
-      <!-- Panel Éxito del Casino -->
-      <div class="glass rounded-3xl p-6 metric-shadow">
-        <h2 class="text-xl font-semibold mb-4">Éxito del Casino</h2>
-        <div class="rounded-2xl bg-slate-900 p-5 grid gap-4">
-          <div class="flex items-baseline justify-between">
-            <div>
-              <div class="text-5xl font-bold" id="exitoValue">0</div>
-              <div class="text-xs text-slate-400">(0–100) · Promedio ponderado</div>
-            </div>
-            <div>
-              <span id="exitoBadge" class="px-3 py-1 rounded-full text-xs bg-slate-800">–</span>
-            </div>
-          </div>
-          <div class="text-xs text-slate-300 leading-relaxed">
-            Fórmula: 0.30×Satisfacción + 0.25×Margen + 0.25×Popularidad + 0.20×(100 − Riesgo)
-          </div>
-          <div class="h-3 w-full rounded-full bg-slate-800 overflow-hidden">
-            <div id="exitoBar" class="h-full bg-blue-500" style="width:0%"></div>
-          </div>
-        </div>
+      const fx = {
+        play: (name, vol=0.5, muted=false) => { if (muted) return; const a = new Audio('sounds/' + name + '.mp3'); a.volume = vol; a.play().catch(() => {}); }
+      };
 
-        <div class="mt-6 text-xs text-slate-300">
-          <h3 class="font-semibold mb-2">Umbrales</h3>
-          <ul class="list-disc ml-5 space-y-1">
-            <li><b>&lt;40</b>: fracaso operativo</li>
-            <li><b>40–60</b>: inestable</li>
-            <li><b>60–75</b>: correcto</li>
-            <li><b>75–90</b>: muy bueno</li>
-            <li><b>&gt;90</b>: excelencia</li>
-          </ul>
-        </div>
+      // =======================
+      // CONFIG MODO DIFÍCIL
+      // =======================
+      const DIFFICULTY = {
+        posScale: 0.8,
+        negScale: 1.1,
+        softCaps: {
+          ltv:           [78, 86, 92, 96, 100],
+          satisfaction:  [85, 90, 94, 97, 100],
+          omni:          [82, 88, 93, 97, 100],
+          online:        [88, 92, 96, 98, 100],
+          offline:       [88, 92, 96, 98, 100],
+          risk:          [100,100,100,100,100],
+        },
+        fatiguePenalty: { omni: 4, sat: 3, ltv: 2, risk: 4 },
+        diminishingStart: 80
+      };
 
-        <div class="mt-6 rounded-2xl bg-slate-900 p-4">
-          <h3 class="font-semibold mb-2">Desglose diario</h3>
-          <ul class="text-sm" id="breakdown"></ul>
-        </div>
-      </div>
-    </section>
+      const softCapFor = (metric, levelIndex) => {
+        const caps = DIFFICULTY.softCaps[metric] || [100,100,100,100,100];
+        return caps[Math.min(levelIndex, caps.length-1)];
+      };
 
-    <!-- SIMULADOR -->
-    <section id="tab-simulador" class="hidden">
-      <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 glass rounded-3xl p-6 metric-shadow">
-          <div class="flex items-start justify-between gap-4 mb-4">
-            <h2 class="text-xl font-semibold">Variables del sistema</h2>
-            <label class="flex items-center gap-2 text-xs"><input id="linkSO" type="checkbox" class="scale-110" checked> Vincular Sala ↔ Online</label>
-          </div>
-          <div id="controls" class="grid md:grid-cols-2 gap-5"></div>
-        </div>
-        <div class="glass rounded-3xl p-6 metric-shadow">
-          <h2 class="text-xl font-semibold mb-4">Éxito del Casino</h2>
-          <div class="rounded-2xl bg-slate-900 p-5 grid gap-4">
-            <div class="flex items-baseline justify-between">
-              <div>
-                <div class="text-5xl font-bold" id="exitoValue2">0</div>
-                <div class="text-xs text-slate-400">(0–100) · Promedio ponderado</div>
-              </div>
-              <div>
-                <span id="exitoBadge2" class="px-3 py-1 rounded-full text-xs bg-slate-800">–</span>
-              </div>
-            </div>
-            <div class="text-xs text-slate-300 leading-relaxed">
-              Fórmula: 0.30×Satisfacción + 0.25×Margen + 0.25×Popularidad + 0.20×(100 − Riesgo)
-            </div>
-            <div class="h-3 w-full rounded-full bg-slate-800 overflow-hidden">
-              <div id="exitoBar2" class="h-full bg-blue-500" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Leyenda de umbrales -->
-      <section class="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Satisfacción del cliente</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>&lt;40: abandono</li>
-            <li>40–50: muy mala</li>
-            <li>50–60: mala</li>
-            <li>80–90: buena</li>
-            <li>&gt;90: excelente (recomienda)</li>
-          </ul>
-        </div>
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Riesgo del cliente</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>&lt;30: bajo</li>
-            <li>30–60: medio</li>
-            <li>60–80: alto</li>
-            <li>&gt;80: crítico</li>
-          </ul>
-        </div>
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Popularidad</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>&lt;40: desconocido/mala imagen</li>
-            <li>40–60: nicho</li>
-            <li>60–80: notable</li>
-            <li>80–90: popular</li>
-            <li>&gt;90: fenómeno</li>
-          </ul>
-        </div>
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Omnicanalidad</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>&lt;40: muy baja</li>
-            <li>40–60: media</li>
-            <li>60–80: buena</li>
-            <li>&gt;80: excelente</li>
-          </ul>
-        </div>
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Margen del casino</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>&lt;20: insostenible</li>
-            <li>20–40: bajo</li>
-            <li>40–60: correcto</li>
-            <li>60–80: óptimo</li>
-            <li>&gt;80: excelente (ojo satisfacción)</li>
-          </ul>
-        </div>
-        <div class="glass rounded-3xl p-5">
-          <h3 class="font-semibold mb-3">Sala / Online</h3>
-          <ul class="text-xs space-y-1 text-slate-300">
-            <li>Vinculados por defecto: Online = 100 − Sala</li>
-            <li>Con alta omnicanalidad (&gt;80) el desbalance penaliza menos la satisfacción</li>
-          </ul>
-        </div>
-      </section>
-    </section>
-  </main>
-
-  <footer class="px-6 md:px-10 py-8 text-xs text-slate-400">
-    Programa Everest · prototipo estático (index.html)
-  </footer>
-
-  <script>
-    // ----------------------------
-    // Modelo base del sistema (compartido Juego + Simulador)
-    // ----------------------------
-    const state = {
-      Omnicanalidad: 55,
-      Satisfaccion: 75,
-      Riesgo: 35,
-      Popularidad: 60,
-      Margen: 55,
-      Sala: 50,
-      Online: 50,
-      linkSO: true,
-      // Juego
-      day: 1,
-      cash: 250000, // €
-      players: 2000
-    };
-
-    const weights = { Satisfaccion: 0.30, Margen: 0.25, Popularidad: 0.25, Riesgo: 0.20 };
-
-    // Deltas predefinidos para escenarios del Campamento Base
-    const scenarios = {
-      colaboradores: { label: 'Sala con colaboradores', cost: 5000, deltas: { Omnicanalidad: +10, Riesgo: -10, Popularidad: -5, Margen: +10, Sala: +10, Online: -10, Satisfaccion: +3 } },
-      tv:            { label: 'Campaña en TV', cost: 40000, deltas: { Margen: -10, Omnicanalidad: -10, Riesgo: +10, Popularidad: +20, Satisfaccion: -5, Online: +5 } },
-      twitch:        { label: 'Streamers en Twitch', cost: 15000, deltas: { Margen: -8, Riesgo: +12, Popularidad: +8, Satisfaccion: -3, Online: +10 } },
-      buscadores:    { label: 'Buscadores en internet', cost: 8000, deltas: { Margen: +12, Riesgo: +5, Popularidad: +5, Satisfaccion: 0, Online: +12 } }
-    };
-
-    // ----------------------------
-    // Utilidades
-    // ----------------------------
-    const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
-    const rnd = (a,b)=> Math.random()*(b-a)+a;
-
-    function qualitative(key, value){
-      switch(key){
-        case 'Omnicanalidad': return value < 40 ? 'muy baja' : value < 60 ? 'media' : value < 80 ? 'buena' : 'excelente';
-        case 'Satisfaccion': return value < 40 ? 'abandono' : value < 50 ? 'muy mala' : value < 60 ? 'mala' : value < 80 ? 'aceptable' : value < 90 ? 'buena' : 'excelente';
-        case 'Riesgo': return value < 30 ? 'bajo' : value < 60 ? 'medio' : value < 80 ? 'alto' : 'crítico';
-        case 'Popularidad': return value < 40 ? 'desconocido' : value < 60 ? 'nicho' : value < 80 ? 'notable' : value < 90 ? 'popular' : 'fenómeno';
-        case 'Margen': return value < 20 ? 'insostenible' : value < 40 ? 'bajo' : value < 60 ? 'correcto' : value < 80 ? 'óptimo' : 'excelente';
-        case 'Exito': return value < 40 ? 'fracaso' : value < 60 ? 'inestable' : value < 75 ? 'correcto' : value < 90 ? 'muy bueno' : 'excelencia';
+      function applyPosWithCaps(current, delta, levelCap) {
+        if (delta <= 0) return delta;
+        let d = delta * DIFFICULTY.posScale;
+        const start = DIFFICULTY.diminishingStart;
+        if (current >= start) {
+          const factor = clamp(1 - ((current - start) / (100 - start)), 0.15, 1);
+          d *= factor;
+        }
+        if (current >= levelCap) {
+          d *= 0.2;
+        } else if (current + d > levelCap) {
+          const extra = (current + d) - levelCap;
+          d -= extra * 0.5;
+        }
+        return d;
       }
-      return '';
-    }
 
-    function badgeColor(key, value){
-      const ok = 'bg-emerald-600';
-      const meh = 'bg-amber-500';
-      const bad = 'bg-rose-600';
-      switch(key){
-        case 'Riesgo': return value < 60 ? ok : value < 80 ? meh : bad;
-        case 'Satisfaccion': return value >= 80 ? ok : value >= 60 ? meh : bad;
-        case 'Omnicanalidad': return value >= 60 ? ok : value >= 40 ? meh : bad;
-        case 'Popularidad': return value >= 60 ? ok : value >= 40 ? meh : bad;
-        case 'Margen': return value >= 60 ? ok : value >= 40 ? meh : bad;
-        default: return 'bg-slate-700';
+      function applyNegWithDifficulty(delta) {
+        if (delta >= 0) return delta;
+        return delta * DIFFICULTY.negScale;
       }
-    }
 
-    function computeExito(){
-      const { Satisfaccion, Margen, Popularidad, Riesgo } = state;
-      const ex = (
-        Satisfaccion * weights.Satisfaccion +
-        Margen * weights.Margen +
-        Popularidad * weights.Popularidad +
-        (100 - Riesgo) * weights.Riesgo
+      function biasOfImpact(impact) {
+        const on = impact.online_activity ?? 0;
+        const off = impact.offline_activity ?? 0;
+        if (on - off > 6) return 'online';
+        if (off - on > 6) return 'offline';
+        return 'balanced';
+      }
+
+      // =======================
+      // CONTENIDO: CARTAS
+      // =======================
+      const LEVELS = [
+        { key:'captacion', title:'Campamento Base — Captación', scenarios: [
+          {
+            id:'C1',
+            title:'Haz Match con tu Slot Ideal',
+            text:'Promoción online de 5€/día durante 7 días.',
+            options:[
+              { text:'Lanzarla solo online',           impact:{ LTV:+4,  satisfaction:+1,  risk:+3,  omnichannel_index:-6, online_activity:+12, offline_activity:-10 } },
+              { text:'Extenderla a clientes de sala',  impact:{ LTV:+3,  satisfaction:+5,  risk:+1,  omnichannel_index:+14, online_activity:+6,  offline_activity:+8 } },
+              { text:'Sustituir por invitación presencial', impact:{ LTV:+2,  satisfaction:+7,  risk:-1,  omnichannel_index:+4,  online_activity:-8,  offline_activity:+14 } },
+            ]
+          },
+          {
+            id:'C2',
+            title:'Registro cruzado en sala',
+            text:'Regístrate online desde el local y recibe consumición.',
+            options:[
+              { text:'Activar en 5 locales piloto',  impact:{ LTV:+4, satisfaction:+4, risk:+1,  omnichannel_index:+10, online_activity:+6,  offline_activity:+6 } },
+              { text:'Activar en toda la red',       impact:{ LTV:+6, satisfaction:+5, risk:+4,  omnichannel_index:+12, online_activity:+10, offline_activity:+8 } },
+            ]
+          },
+        ]},
+        { key:'activacion', title:'Campamento 1 — Activación', scenarios: [
+          {
+            id:'A1',
+            title:'Cliente de sala descubre online',
+            text:'Un habitual de sala descarga la app; baja su ritmo presencial.',
+            options:[
+              { text:'Enviar bono personalizado',            impact:{ LTV:+5,  satisfaction:+2,  risk:+6,  omnichannel_index:-6, online_activity:+14, offline_activity:-12 } },
+              { text:'Combo sala + online (equilibrado)',    impact:{ LTV:+7,  satisfaction:+7,  risk:+1,  omnichannel_index:+16, online_activity:+8,  offline_activity:+8 } },
+              { text:'No intervenir',                        impact:{ LTV:-4, satisfaction:-6, risk:+0,  omnichannel_index:-8,  online_activity:+0,  offline_activity:-10 } },
+            ]
+          },
+          {
+            id:'A2',
+            title:'Tutorial en sala para jugar online',
+            text:'Sesión guiada en local + consumición.',
+            options:[
+              { text:'Hacerlo fin de semana (alta afluencia)',  impact:{ LTV:+6, satisfaction:+8, risk:+2,  omnichannel_index:+12, online_activity:+8, offline_activity:+6 } },
+              { text:'Hacerlo laborables (baja fricción)',       impact:{ LTV:+4, satisfaction:+5, risk:+1,  omnichannel_index:+8,  online_activity:+6, offline_activity:+4 } },
+            ]
+          },
+        ]},
+        { key:'retencion', title:'Campamento 2 — Retención', scenarios: [
+          {
+            id:'R1',
+            title:'Cross-Promo Doble Pista',
+            text:'Juega online → copa en sala; juega en sala → spins online.',
+            options:[
+              { text:'Segmentada por valor',  impact:{ LTV:+9,  satisfaction:+7, risk:+1, omnichannel_index:+18, online_activity:+10, offline_activity:+10 } },
+              { text:'Para todos',            impact:{ LTV:+3,  satisfaction:+5, risk:+6, omnichannel_index:+6,  online_activity:+8,  offline_activity:+6 } },
+            ]
+          },
+          {
+            id:'R2',
+            title:'Evento F1 en sala (invitación desde app)',
+            text:'Viewing party con ventajas para jugadores online.',
+            options:[
+              { text:'VIPs online',      impact:{ LTV:+8, satisfaction:+8, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
+              { text:'Activos 30 días',  impact:{ LTV:+6, satisfaction:+6, risk:+3, omnichannel_index:+8,  online_activity:+5,  offline_activity:+10 } },
+            ]
+          },
+        ]},
+        { key:'riesgo', title:'Campamento 3 — Riesgo', scenarios: [
+          {
+            id:'S1',
+            title:'Jugador intensivo omnicanal',
+            text:'Señales de juego intenso. ¿Qué haces?',
+            options:[
+              { text:'Activar límites y enfriar',    impact:{ LTV:-6, satisfaction:+4,  risk:-16, omnichannel_index:+0,  online_activity:-8, offline_activity:-6 } },
+              { text:'No intervenir',                 impact:{ LTV:+2, satisfaction:-12, risk:+20,  omnichannel_index:-8, online_activity:+10, offline_activity:+8 } },
+            ]
+          },
+          {
+            id:'S2',
+            title:'Auto-exclusión voluntaria',
+            text:'Cliente solicita auto-exclusión.',
+            options:[
+              { text:'Proceder y ofrecer ayuda',         impact:{ LTV:-12, satisfaction:+10, risk:-24, omnichannel_index:+0,  online_activity:-15, offline_activity:-10 } },
+              { text:'Intentar retener (NO recomendado)',impact:{ LTV:+4,   satisfaction:-14, risk:+30, omnichannel_index:-10, online_activity:+10,  offline_activity:+6 } },
+            ]
+          },
+        ]},
+        { key:'fidelizacion', title:'Campamento 4 — Fidelización', scenarios: [
+          {
+            id:'F1',
+            title:'Club VIP Omnicanal Everest',
+            text:'Puntos válidos en sala y online.',
+            options:[
+              { text:'Lanzamiento top 20%',  impact:{ LTV:+10, satisfaction:+12, risk:+1, omnichannel_index:+20, online_activity:+10, offline_activity:+10 } },
+              { text:'Lanzamiento general',  impact:{ LTV:+6,  satisfaction:+9,  risk:+3, omnichannel_index:+14, online_activity:+8,  offline_activity:+8 } },
+            ]
+          },
+          {
+            id:'F2',
+            title:'Viewing party Madrid–Barça',
+            text:'Acceso gratuito a clientes online con cierto nivel.',
+            options:[
+              { text:'Sólo Plata+',  impact:{ LTV:+7, satisfaction:+9, risk:+1, omnichannel_index:+12, online_activity:+4,  offline_activity:+14 } },
+              { text:'Abierta',       impact:{ LTV:+5, satisfaction:+7, risk:+2, omnichannel_index:+8,  online_activity:+4,  offline_activity:+10 } },
+            ]
+          },
+        ]},
+      ];
+
+      const EVENTS = {
+        0: [
+          { key:'clasico', title:'⚽ Clásico Madrid–Barça', text:'Viewing party en sala para impulsar la mezcla de canales.',
+            options:[
+              { text:'Invitar VIPs Online (cupo limitado)', impact:{ LTV:+6, satisfaction:+6, risk:-1, omnichannel_index:+8,  online_activity:+4,  offline_activity:+12 } },
+              { text:'Abrirlo al público general',          impact:{ LTV:+3, satisfaction:+4, risk:+2,  omnichannel_index:+4,  online_activity:+3,  offline_activity:+8  } },
+              { text:'Ignorar (no activar)',                 impact:{ LTV:+0, satisfaction:-2, risk:+0,  omnichannel_index:-2, online_activity:+0,  offline_activity:+0  } },
+            ]},
+        ],
+        1: [
+          { key:'f1', title:'🏁 Carrera de F1', text:'Gran Premio con mucha audiencia. ¿Activamos app y sala?',
+            options:[
+              { text:'Porra en App + QR en sala', impact:{ LTV:+6, satisfaction:+4, risk:+2,  omnichannel_index:+10, online_activity:+6,  offline_activity:+10 } },
+              { text:'Solo porra en App',         impact:{ LTV:+4, satisfaction:+2, risk:+2,  omnichannel_index:-4,  online_activity:+10, offline_activity:-8 } },
+              { text:'Ignorar',                    impact:{ LTV:-1, satisfaction:-2, risk:+0,  omnichannel_index:-2,  online_activity:+0,  offline_activity:+0 } },
+            ]},
+        ],
+        2: [
+          { key:'tenis', title:'🎾 Masters de Tenis', text:'Partido top. ¿Bundle sala+online o empuje digital?',
+            options:[
+              { text:'Bundle: bebida en sala + free spins en App', impact:{ LTV:+7, satisfaction:+6, risk:+1,  omnichannel_index:+12, online_activity:+8,  offline_activity:+10 } },
+              { text:'Solo streaming en App',                      impact:{ LTV:+3, satisfaction:+3, risk:+1,  omnichannel_index:-3,  online_activity:+10, offline_activity:-8 } },
+              { text:'Ignorar',                                     impact:{ LTV:-2, satisfaction:-3, risk:+0,  omnichannel_index:-3,  online_activity:+0,  offline_activity:+0  } },
+            ]},
+        ],
+        3: [
+          { key:'alerta_riesgo', title:'⚠️ Alerta de patrón arriesgado', text:'Detección de sesión intensa en múltiples canales.',
+            options:[
+              { text:'Aplicar límites y cool-off',      impact:{ LTV:-8, satisfaction:+4,  risk:-18, omnichannel_index:+0, online_activity:-10, offline_activity:-8 } },
+              { text:'Contactar con mensaje de apoyo',  impact:{ LTV:-3, satisfaction:+6,  risk:-10, omnichannel_index:+2, online_activity:-4,  offline_activity:-3 } },
+              { text:'No intervenir (no recomendado)',  impact:{ LTV:+2, satisfaction:-8, risk:+16,  omnichannel_index:-6, online_activity:+8,   offline_activity:+6 } },
+            ]},
+        ],
+        4: [
+          { key:'concierto_local', title:'🎤 Concierto en Local', text:'Evento con cupos limitados. ¿A quién invitamos desde la App?',
+            options:[
+              { text:'VIPs + Plata+',     impact:{ LTV:+10, satisfaction:+10, risk:+0, omnichannel_index:+12, online_activity:+6,  offline_activity:+14 } },
+              { text:'Invitación abierta', impact:{ LTV:+6,  satisfaction:+6,  risk:+1, omnichannel_index:+6,  online_activity:+4,  offline_activity:+10 } },
+              { text:'No activar',         impact:{ LTV:+0,  satisfaction:-2,  risk:+0, omnichannel_index:-2,  online_activity:+0,  offline_activity:+0  } },
+            ]},
+        ],
+      };
+
+      // =======================
+      // UI
+      // =======================
+      const ProgressBar = ({ value=0, color='#ef4444' }) => {
+        const v = clamp(Math.round(value), 0, 100);
+        return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
+      };
+
+      function HUD({ ltv, omni, satisfaction, risk, online, offline }) {
+        const items = [
+          {label:'💰 LTV',val:rnd(ltv),color:'#22c55e'},
+          {label:'🔄 Omnicanalidad',val:rnd(omni),isPct:true,color:'#60a5fa'},
+          {label:'❤️ Satisfacción',val:rnd(satisfaction),isPct:true,color:'#f97316'},
+          {label:'⚠️ Riesgo',val:rnd(risk),isPct:true,color:'#ef4444'},
+          {label:'🏪 Sala',val:rnd(offline),isPct:true,color:'#a78bfa'},
+          {label:'💻 Online',val:rnd(online),isPct:true,color:'#34d399'}
+        ];
+        return (
+          <div className="mt-6 grid md:grid-cols-6 gap-4">
+            {items.map((m) => (
+              <div key={m.label} className="card">
+                <div className="p-4">
+                  <p className="text-xs text-gray-300/80">{m.label}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <ProgressBar value={m.val} color={m.color} />
+                    <span className="text-sm text-gray-200 w-12 text-right">
+                      {m.isPct?`${clamp(m.val,0,100)}%`:clamp(m.val,0,100)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      function DebugPanel({ show, ltv, omni, satisfaction, risk, online, offline, biasStreak, lastBias, caps }) {
+        if (!show) return null;
+        return (
+          <div className="mt-4 text-xs text-gray-300/90 bg-white/5 rounded-lg p-3">
+            <div className="flex flex-wrap gap-3">
+              <span>💰 LTV: <b>{rnd(ltv)}</b> <span class="badge">cap {caps.ltv}</span></span>
+              <span>🔄 Omni: <b>{rnd(omni)}%</b> <span class="badge">cap {caps.omni}%</span></span>
+              <span>❤️ Sat: <b>{rnd(satisfaction)}%</b> <span class="badge">cap {caps.satisfaction}%</span></span>
+              <span>⚠️ Riesgo: <b>{rnd(risk)}%</b></span>
+              <span>🏪 Sala: <b>{rnd(offline)}%</b> <span class="badge">cap {caps.offline}%</span></span>
+              <span>💻 Online: <b>{rnd(online)}%</b> <span class="badge">cap {caps.online}%</span></span>
+              <span>🎯 Sesgo: <b>{lastBias}</b> (racha {biasStreak})</span>
+            </div>
+            <p className="mt-2 opacity-80">Pulsa <b>D</b> para ocultar/mostrar este panel.</p>
+          </div>
+        );
+      }
+
+      function SuccessPanel({ ltv, omni, satisfaction, risk }){
+        // Éxito del casino (composición adaptada a este juego)
+        const success = Math.round(
+          ltv*0.35 + satisfaction*0.30 + omni*0.20 + (100-risk)*0.15
+        );
+        const tag = success<40 ? 'fracaso' : success<60 ? 'inestable' : success<75 ? 'correcto' : success<90 ? 'muy bueno' : 'excelencia';
+        const color = success>=90? '#16a34a' : success>=75? '#22c55e' : success>=60? '#f59e0b' : success>=40? '#fbbf24' : '#ef4444';
+        return (
+          <div className="card">
+            <div className="p-5">
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="text-4xl font-bold">{success}</div>
+                  <div className="text-xs text-gray-300/80">Éxito del Casino (0–100)</div>
+                </div>
+                <span className="badge" style={{borderColor:color,color}}>{tag}</span>
+              </div>
+              <div className="mt-3"><ProgressBar value={success} color={color} /></div>
+              <p className="mt-3 text-xs text-gray-300/80">Fórmula: 0.35×LTV + 0.30×Satisfacción + 0.20×Omni + 0.15×(100−Riesgo)</p>
+              <ul className="mt-2 text-[11px] text-gray-400 list-disc ml-4">
+                <li>&lt;40: fracaso</li>
+                <li>40–60: inestable</li>
+                <li>60–75: correcto</li>
+                <li>75–90: muy bueno</li>
+                <li>&gt;90: excelencia</li>
+              </ul>
+            </div>
+          </div>
+        );
+      }
+
+      function Board({ levelIndex, onStartScenario, ltv, omni, satisfaction, risk, online, offline, showDebug, caps, biasStreak, lastBias }) {
+        return (
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 card">
+              <div className="p-8">
+                <h2 className="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-2">🏔️ Tablero del Everest</h2>
+                <div className="grid md:grid-cols-6 gap-3">
+                  {LEVELS.map((_, i) => (
+                    <div key={i} className="flex flex-col items-center">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${i <= levelIndex ? 'bg-red-600' : 'bg-gray-600'}`}>{i+1}</div>
+                      <p className="text-xs text-gray-300 mt-2">Camp {i}</p>
+                    </div>
+                  ))}
+                </div>
+                <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+                <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} biasStreak={biasStreak} lastBias={lastBias} caps={caps}/>
+                <div className="flex justify-center mt-6"><button className="btn btn-primary" onClick={onStartScenario}>Abrir escenario</button></div>
+              </div>
+            </div>
+            <div>
+              <SuccessPanel ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} />
+              <div className="card mt-4">
+                <div className="p-4">
+                  <h3 className="font-semibold mb-2">Exportar / Importar</h3>
+                  <div className="flex gap-2 text-sm">
+                    <button id="btnExport" className="btn btn-secondary">Exportar JSON</button>
+                    <label className="btn btn-outline cursor-pointer">Importar JSON<input id="fileImport" type="file" accept="application/json" className="hidden"/></label>
+                    <button id="btnReset" className="btn btn-outline">Reset</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function ScenarioCard({ levelTitle, scenario, onChoose, selectedIndex }) {
+        return (
+          <div className="card">
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-300/80 uppercase tracking-wider">{levelTitle}</p>
+              <h3 className="text-2xl md:text-3xl font-semibold text-red-400">{scenario.title}</h3>
+              {scenario.text && <p className="text-gray-200/90">{scenario.text}</p>}
+              <div className="grid md:grid-cols-3 gap-3">
+                {scenario.options.map((opt, i) => {
+                  const picked = selectedIndex === i;
+                  return (
+                    <button
+                      key={i}
+                      className={`btn btn-outline text-left ${picked ? 'opt-picked' : ''}`}
+                      disabled={selectedIndex !== null && !picked}
+                      onClick={() => onChoose(opt.impact, i)}
+                    >
+                      {opt.text} {picked && '✓'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function EventModal({ event, onChoose, onClose }) {
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="w-full max-w-xl">
+              <div className="card" style={{borderColor:'#f59e0b'}}>
+                <div className="p-6">
+                  <h3 className="text-xl md:text-2xl font-bold text-yellow-400 flex items-center gap-2">{event.title}</h3>
+                  <p className="text-gray-200 mt-2">{event.text}</p>
+                  <div className="grid md:grid-cols-1 gap-3 mt-4">
+                    {event.options.map((opt, i) => (
+                      <button key={i} className="btn btn-secondary text-left" style={{background:'#f59e0b',color:'#000'}} onClick={() => onChoose(opt.impact)}>
+                        {opt.text}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <button className="btn btn-outline" onClick={onClose}>Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const FinalScreen = ({ score, stats, onRestart }) => (
+        <div className="card">
+          <div className="text-center space-y-4 py-12 px-6">
+            <div className="text-5xl">🏆</div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-red-400">¡Has alcanzado la Cima!</h2>
+            <p className="text-gray-200 text-lg">Puntuación final: <span className="font-bold">{score}</span></p>
+            <div className="grid md:grid-cols-3 gap-3 text-sm text-gray-200 max-w-3xl mx-auto">
+              <div className="bg-white/5 p-3 rounded-xl">LTV: <b>{rnd(stats.ltv)}</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Omnicanalidad: <b>{rnd(stats.omni)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Satisfacción: <b>{rnd(stats.satisfaction)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Riesgo: <b>{rnd(stats.risk)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Sala: <b>{rnd(stats.offline)}%</b></div>
+              <div className="bg-white/5 p-3 rounded-xl">Online: <b>{rnd(stats.online)}%</b></div>
+            </div>
+            <div className="flex justify-center gap-4 mt-4"><button className="btn btn-secondary" onClick={onRestart}>🔁 Reiniciar</button></div>
+          </div>
+        </div>
       );
-      return Math.round(ex);
-    }
 
-    function crossEffects(){
-      if(state.Popularidad > 80){ state.Riesgo = clamp(state.Riesgo + 10); state.Margen = clamp(state.Margen - 5); }
-      if(state.Margen > 80){ state.Satisfaccion = clamp(state.Satisfaccion - 10); }
-      if(state.Omnicanalidad > 80){ state.Riesgo = clamp(state.Riesgo - 10); state.Satisfaccion = clamp(state.Satisfaccion + 5); }
-      const imbalance = Math.abs(state.Sala - state.Online);
-      if(imbalance > 40 && state.Omnicanalidad < 60){ state.Satisfaccion = clamp(state.Satisfaccion - 5); }
-    }
+      // =======================
+      // APP
+      // =======================
+      function App() {
+        const [screen, setScreen] = useState('lobby');
+        const [levelIndex, setLevelIndex] = useState(0);
+        const [scenarioIndex, setScenarioIndex] = useState(0);
+        const [muted, setMuted] = useState(false);
 
-    function save(){ try{ localStorage.setItem('everest_state', JSON.stringify(state)); }catch(e){} }
-    function load(){ try{ const raw = localStorage.getItem('everest_state'); if(raw){ Object.assign(state, JSON.parse(raw)); } }catch(e){} }
+        // Estado inicial REALISTA
+        const [ltv, setLtv] = useState(55);
+        const [omni, setOmni] = useState(35);
+        const [satisfaction, setSatisfaction] = useState(72);
+        const [risk, setRisk] = useState(20);
+        const [online, setOnline] = useState(45);
+        const [offline, setOffline] = useState(55);
 
-    // ----------------------------
-    // SIMULADOR UI
-    // ----------------------------
-    const controls = [
-      { key:'Omnicanalidad', label:'Omnicanalidad' },
-      { key:'Satisfaccion', label:'Satisfacción del cliente' },
-      { key:'Riesgo', label:'Riesgo del cliente' },
-      { key:'Popularidad', label:'Popularidad del casino' },
-      { key:'Margen', label:'Margen del casino' },
-      { key:'Sala', label:'Sala (peso % actividad)' },
-      { key:'Online', label:'Online (peso % actividad)' },
-    ];
+        const [pendingAdvance, setPendingAdvance] = useState(false);
+        const [event, setEvent] = useState(null);
+        const [showDebug, setShowDebug] = useState(false);
 
-    function renderControls(){
-      const wrap = document.getElementById('controls');
-      if(!wrap) return;
-      wrap.innerHTML = '';
-      controls.forEach(c => {
-        const val = state[c.key];
-        const card = document.createElement('div');
-        card.className = 'rounded-2xl bg-slate-900 p-4';
-        card.innerHTML = `
-          <div class="flex items-center justify-between mb-2">
-            <label class="font-medium">${c.label}</label>
-            <span id="badge-${c.key}" class="px-2 py-1 rounded-full text-[10px] ${badgeColor(c.key, val)}">${qualitative(c.key, val)}</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <input id="range-${c.key}" type="range" min="0" max="100" step="1" value="${val}" class="w-full" />
-            <div class="w-14 text-right text-sm tabular-nums" id="val-${c.key}">${val}</div>
-          </div>
-          <div class="h-2 w-full mt-2 rounded bg-slate-800 overflow-hidden">
-            <div id="bar-${c.key}" class="h-full bg-blue-500" style="width:${val}%"></div>
-          </div>
-        `;
-        wrap.appendChild(card);
-        card.querySelector(`#range-${c.key}`).addEventListener('input', (e) => {
-          const newVal = parseInt(e.target.value, 10);
-          if(c.key === 'Sala' && document.getElementById('linkSO').checked){
-            state.Sala = newVal; state.Online = clamp(100 - newVal); updateControl('Sala'); updateControl('Online');
-          } else if(c.key === 'Online' && document.getElementById('linkSO').checked){
-            state.Online = newVal; state.Sala = clamp(100 - newVal); updateControl('Online'); updateControl('Sala');
+        // Exclusividad por escenario
+        const [selectedIndex, setSelectedIndex] = useState(null);
+
+        // Sesgo y fatiga
+        const [lastBias, setLastBias] = useState('balanced');
+        const [biasStreak, setBiasStreak] = useState(0);
+
+        // ==== Persistencia local ====
+        useEffect(() => {
+          try{
+            const raw = localStorage.getItem('everest_react_state');
+            if(raw){
+              const s = JSON.parse(raw);
+              setScreen(s.screen ?? 'lobby');
+              setLevelIndex(s.levelIndex ?? 0);
+              setScenarioIndex(s.scenarioIndex ?? 0);
+              setMuted(!!s.muted);
+              setLtv(s.ltv ?? 55); setOmni(s.omni ?? 35); setSatisfaction(s.satisfaction ?? 72);
+              setRisk(s.risk ?? 20); setOnline(s.online ?? 45); setOffline(s.offline ?? 55);
+              setLastBias(s.lastBias ?? 'balanced'); setBiasStreak(s.biasStreak ?? 0);
+            }
+          }catch(e){}
+        }, []);
+
+        useEffect(() => {
+          const data = { screen, levelIndex, scenarioIndex, muted, ltv, omni, satisfaction, risk, online, offline, lastBias, biasStreak };
+          try{ localStorage.setItem('everest_react_state', JSON.stringify(data)); }catch(e){}
+        }, [screen, levelIndex, scenarioIndex, muted, ltv, omni, satisfaction, risk, online, offline, lastBias, biasStreak]);
+
+        useEffect(() => {
+          const onKey = (e) => { if ((e.key || '').toLowerCase() === 'd') setShowDebug(s => !s); };
+          window.addEventListener('keydown', onKey);
+          return () => window.removeEventListener('keydown', onKey);
+        }, []);
+
+        const caps = {
+          ltv:          softCapFor('ltv', levelIndex),
+          satisfaction: softCapFor('satisfaction', levelIndex),
+          omni:         softCapFor('omni', levelIndex),
+          online:       softCapFor('online', levelIndex),
+          offline:      softCapFor('offline', levelIndex)
+        };
+
+        // Motor con dificultad
+        const applyImpact = (impact) => {
+          let ltv1   = ltv;
+          let sat1   = satisfaction;
+          let risk1  = risk;
+          let on1    = online;
+          let off1   = offline;
+          let omni1  = omni;
+
+          let d = {
+            LTV: (impact.LTV ?? 0),
+            SAT: (impact.satisfaction ?? 0),
+            RISK:(impact.risk ?? 0),
+            ON:  (impact.online_activity ?? 0),
+            OFF: (impact.offline_activity ?? 0),
+            OMNI:(impact.omnichannel_index ?? 0)
+          };
+
+          d.LTV  = (d.LTV  >=0) ? applyPosWithCaps(ltv1,  d.LTV,  caps.ltv)          : applyNegWithDifficulty(d.LTV);
+          d.SAT  = (d.SAT  >=0) ? applyPosWithCaps(sat1,  d.SAT,  caps.satisfaction) : applyNegWithDifficulty(d.SAT);
+          d.ON   = (d.ON   >=0) ? applyPosWithCaps(on1,   d.ON,   caps.online)       : applyNegWithDifficulty(d.ON);
+          d.OFF  = (d.OFF  >=0) ? applyPosWithCaps(off1,  d.OFF,  caps.offline)      : applyNegWithDifficulty(d.OFF);
+          d.OMNI = (d.OMNI >=0) ? applyPosWithCaps(omni1, d.OMNI, caps.omni)         : applyNegWithDifficulty(d.OMNI);
+          d.RISK = (d.RISK >=0) ? d.RISK * 1.0 : d.RISK * 1.1;
+
+          ltv1  = ltv1  + d.LTV;
+          sat1  = sat1  + d.SAT;
+          risk1 = risk1 + d.RISK;
+          on1   = on1   + d.ON;
+          off1  = off1  + d.OFF;
+
+          on1  = clamp(on1,  0, 100);
+          off1 = clamp(off1, 0, 100);
+
+          const gap = Math.abs(on1 - off1);
+          const balanceComponent = 18 - gap * 0.20;
+          omni1 = omni1 + d.OMNI + balanceComponent;
+
+          const thisBias = biasOfImpact(impact);
+          if (thisBias === lastBias && thisBias !== 'balanced') {
+            const nextStreak = biasStreak + 1;
+            if (nextStreak >= 2) {
+              omni1 -= DIFFICULTY.fatiguePenalty.omni;
+              sat1  -= DIFFICULTY.fatiguePenalty.sat;
+              ltv1  -= DIFFICULTY.fatiguePenalty.ltv;
+              risk1 += DIFFICULTY.fatiguePenalty.risk;
+            }
+            setBiasStreak(nextStreak);
           } else {
-            state[c.key] = newVal; updateControl(c.key);
+            setBiasStreak(thisBias === 'balanced' ? 0 : 1);
+            setLastBias(thisBias);
           }
-          updateAll(); syncGamePanel();
-        });
-      });
-    }
 
-    function updateControl(key){
-      const v = clamp(state[key]); state[key] = v;
-      const badge = document.getElementById(`badge-${key}`);
-      const valEl = document.getElementById(`val-${key}`);
-      const bar = document.getElementById(`bar-${key}`);
-      const range = document.getElementById(`range-${key}`);
-      if(badge){ badge.textContent = qualitative(key, v); badge.className = `px-2 py-1 rounded-full text-[10px] ${badgeColor(key, v)}`; }
-      if(valEl) valEl.textContent = v;
-      if(bar) bar.style.width = v + '%';
-      if(range && parseInt(range.value,10) !== v){ range.value = v; }
-    }
+          if (on1 > 95 && off1 < 60) { risk1 += 3; omni1 -= 3; }
+          if (off1 > 95 && on1  < 60) { risk1 += 3; omni1 -= 3; }
+          if (risk1 > 60) sat1 -= (risk1 - 60) * 0.08;
+          if (risk1 > 75) ltv1 -= (risk1 - 75) * 0.20;
 
-    function renderExito(domSuf=''){ // '' para juego, '2' para simulador
-      const exito = computeExito();
-      const badge = document.getElementById('exitoBadge'+domSuf);
-      const bar = document.getElementById('exitoBar'+domSuf);
-      const val = document.getElementById('exitoValue'+domSuf);
-      if(val) val.textContent = exito;
-      if(bar) bar.style.width = exito + '%';
-      const q = qualitative('Exito', exito);
-      if(badge){
-        badge.textContent = q;
-        badge.className = 'px-3 py-1 rounded-full text-xs ' + (exito>=75 ? 'bg-emerald-600' : exito>=60 ? 'bg-amber-500' : exito>=40 ? 'bg-yellow-700' : 'bg-rose-600');
+          const hardCap = (levelIndex < 3) ? 98 : 100;
+          ltv1  = clamp(ltv1,  0, hardCap);
+          sat1  = clamp(sat1,  0, hardCap);
+          risk1 = clamp(risk1, 0, 100);
+          omni1 = clamp(omni1, 0, hardCap);
+          on1   = clamp(on1,  0, hardCap);
+          off1  = clamp(off1, 0, hardCap);
+
+          setLtv(ltv1); setSatisfaction(sat1); setRisk(risk1); setOnline(on1); setOffline(off1); setOmni(omni1);
+          fx.play('decision', 0.6, muted);
+          setPendingAdvance(true);
+        };
+
+        const onChooseOnce = (impact, idx) => {
+          if (selectedIndex !== null) return;
+          setSelectedIndex(idx);
+          applyImpact(impact);
+        };
+
+        const nextStep = () => {
+          const moreScenarios = scenarioIndex + 1 < LEVELS[levelIndex].scenarios.length;
+          if (moreScenarios) {
+            setScenarioIndex(i => i + 1);
+            setSelectedIndex(null);
+            return;
+          }
+          const showEvent = (levelIndex + 1) % 2 === 0;
+          if (showEvent) {
+            const pool = EVENTS[levelIndex] || [];
+            if (pool.length) {
+              const picked = pool[Math.floor(Math.random() * pool.length)];
+              setEvent(picked);
+            } else {
+              goNextLevel();
+            }
+          } else {
+            goNextLevel();
+          }
+        };
+
+        const goNextLevel = () => {
+          const moreLevels = levelIndex + 1 < LEVELS.length;
+          if (moreLevels) {
+            setLevelIndex(l => l + 1);
+            setScenarioIndex(0);
+            setSelectedIndex(null);
+            setScreen('board');
+          } else {
+            setScreen('final');
+          }
+        };
+
+        const resetGame = () => {
+          setScreen('lobby');
+          setLevelIndex(0);
+          setScenarioIndex(0);
+          setEvent(null);
+          setPendingAdvance(false);
+          setSelectedIndex(null);
+          setLtv(55); setOmni(35); setSatisfaction(72); setRisk(20); setOnline(45); setOffline(55);
+          setLastBias('balanced'); setBiasStreak(0);
+          try{ localStorage.removeItem('everest_react_state'); }catch(e){}
+        };
+
+        // Export / Import (botones en Board)
+        useEffect(()=>{
+          const btnExport = document.getElementById('btnExport');
+          const fileImport = document.getElementById('fileImport');
+          const btnReset = document.getElementById('btnReset');
+          if(btnExport){ btnExport.onclick = ()=>{
+            const data = { screen, levelIndex, scenarioIndex, muted, ltv, omni, satisfaction, risk, online, offline, lastBias, biasStreak };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+            const url = URL.createObjectURL(blob); const a = document.createElement('a');
+            a.href = url; a.download = 'everest_state.json'; a.click(); URL.revokeObjectURL(url);
+          };}
+          if(fileImport){ fileImport.onchange = (e)=>{
+            const f = e.target.files?.[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = () => { try{
+              const s = JSON.parse(r.result);
+              setScreen(s.screen ?? 'lobby'); setLevelIndex(s.levelIndex ?? 0); setScenarioIndex(s.scenarioIndex ?? 0);
+              setMuted(!!s.muted); setLtv(s.ltv ?? 55); setOmni(s.omni ?? 35); setSatisfaction(s.satisfaction ?? 72);
+              setRisk(s.risk ?? 20); setOnline(s.online ?? 45); setOffline(s.offline ?? 55);
+              setLastBias(s.lastBias ?? 'balanced'); setBiasStreak(s.biasStreak ?? 0);
+            }catch(err){ alert('JSON inválido'); } };
+            r.readAsText(f);
+          }; }
+          if(btnReset){ btnReset.onclick = resetGame; }
+        }, [screen, levelIndex, scenarioIndex, muted, ltv, omni, satisfaction, risk, online, offline, lastBias, biasStreak]);
+
+        const finalScore = useMemo(() => {
+          const compliance = 100 - risk;
+          const omniW = omni / 100;
+          const satW  = satisfaction / 100;
+          return Math.round(ltv * (0.6 + 0.2*omniW + 0.2*satW) * (compliance/100));
+        }, [ltv, omni, satisfaction, risk]);
+
+        return (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-red-400 tracking-tight">
+                  EVEREST CLIENTE — Demo Jugable (Static)
+                </h1>
+              </motion.div>
+              <div className="flex items-center gap-3">
+                <button className="btn btn-outline text-sm" onClick={() => setMuted(m => !m)}>
+                  {muted ? '▶️ Sonido' : '⏸️ Silencio'}
+                </button>
+                <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
+                <button className="btn btn-primary text-sm" onClick={() => setScreen('roles')}>Roles</button>
+                <button className="btn btn-primary text-sm" onClick={() => setScreen('board')}>Tablero</button>
+                <button className="btn btn-primary text-sm" onClick={() => setScreen('scenario')}>Escenario</button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {screen === 'lobby' && (
+                <div className="card shadow-2xl">
+                  <div className="text-center space-y-4 py-12 px-6">
+                    <h2 className="text-4xl font-extrabold text-red-400">La Ascensión Omnicanal</h2>
+                    <p className="text-gray-200/90 max-w-2xl mx-auto">
+                      Une el Casino Online y las Salas Pause & Play para alcanzar el LTV máximo.
+                      La cima se conquista en equipo.
+                    </p>
+                    <div className="flex justify-center gap-4 mt-4">
+                      <button className="btn btn-primary" onClick={() => setScreen('roles')}>▶️ Iniciar Expedición</button>
+                      <button className="btn btn-outline" onClick={() => setScreen('board')}>Explorar Tablero</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {screen === 'roles' && (
+                <div className="card">
+                  <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-6">Selecciona tu Rol</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      {[
+                        {icon:'🎯',title:'Marketing',desc:'Captación y campañas'},
+                        {icon:'💬',title:'CRM',desc:'Retención y personalización'},
+                        {icon:'🧩',title:'Producto',desc:'UX e innovación'},
+                        {icon:'🤝',title:'Locales',desc:'Sala física y omnicanalidad'},
+                      ].map((r) => (
+                        <div key={r.title} className="card border border-gray-600 text-center p-6">
+                          <h3 className="text-xl mb-2">{r.icon} {r.title}</h3>
+                          <p className="text-sm text-gray-300">{r.desc}</p>
+                          <div className="mt-3 flex gap-2 justify-center">
+                            <button className="btn btn-primary">Seleccionar</button>
+                            <button className="btn btn-secondary" onClick={() => setScreen('board')}>Continuar</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {screen === 'board' && (
+                <div>
+                  <Board
+                    levelIndex={levelIndex}
+                    onStartScenario={() => setScreen('scenario')}
+                    ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline}
+                    showDebug={showDebug} caps={caps} biasStreak={biasStreak} lastBias={lastBias}
+                  />
+                </div>
+              )}
+
+              {screen === 'scenario' && (
+                <div>
+                  <ScenarioCard
+                    levelTitle={LEVELS[levelIndex].title}
+                    scenario={LEVELS[levelIndex].scenarios[scenarioIndex]}
+                    onChoose={onChooseOnce}
+                    selectedIndex={selectedIndex}
+                  />
+                  <HUD ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} />
+                  <DebugPanel show={showDebug} ltv={ltv} omni={omni} satisfaction={satisfaction} risk={risk} online={online} offline={offline} biasStreak={biasStreak} lastBias={lastBias} caps={caps}/>
+                  {pendingAdvance && (
+                    <div className="flex justify-center mt-4">
+                      <button className="btn btn-primary" onClick={() => { setPendingAdvance(false); nextStep(); }}>
+                        Continuar ▶
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {event && (
+                <EventModal
+                  event={event}
+                  onChoose={(impact) => {
+                    onChooseOnce(impact, 0);
+                    setEvent(null);
+                    setSelectedIndex(null);
+                    goNextLevel();
+                  }}
+                  onClose={() => {
+                    setEvent(null);
+                    setSelectedIndex(null);
+                    goNextLevel();
+                  }}
+                />
+              )}
+
+              {screen === 'final' && (
+                <FinalScreen
+                  score={Math.max(0, Math.round(ltv * (0.6 + 0.2*(omni/100) + 0.2*(satisfaction/100)) * ((100-risk)/100)))}
+                  stats={{ ltv, omni, satisfaction, risk, online, offline }}
+                  onRestart={resetGame}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        );
       }
-      return exito;
-    }
 
-    function updateAll(){
-      // Vinculaciones
-      const link = document.getElementById('linkSO');
-      if(link) state.linkSO = link.checked;
-
-      // Normaliza y aplica efectos cruzados sobre snapshot
-      const snapshot = { ...state };
-      ['Omnicanalidad','Satisfaccion','Riesgo','Popularidad','Margen','Sala','Online'].forEach(k=> state[k] = clamp(snapshot[k]));
-      crossEffects();
-
-      // Sync UI simulador
-      controls.forEach(c => updateControl(c.key));
-      renderExito('');
-      renderExito('2');
-      save();
-    }
-
-    function applyScenario(key, fromGame=false){
-      const sc = scenarios[key]; if(!sc) return;
-      const d = sc.deltas;
-      for(const k in d){
-        if(k === 'Sala' && document.getElementById('linkSO')?.checked){ state.Sala = clamp(state.Sala + d[k]); state.Online = clamp(100 - state.Sala); }
-        else if(k === 'Online' && document.getElementById('linkSO')?.checked){ state.Online = clamp(state.Online + d[k]); state.Sala = clamp(100 - state.Online); }
-        else { state[k] = clamp((state[k] ?? 0) + d[k]); }
-      }
-      if(fromGame){
-        spend(sc.cost);
-        log(`Campaña aplicada: <b>${sc.label}</b> (−€${fmt(sc.cost)})`);
-      }
-      const note = document.getElementById('scenarioNote');
-      if(note){ note.classList.remove('hidden'); note.innerHTML = `Aplicado: ${sc.label}.`; }
-      updateAll(); syncGamePanel();
-      const bar = document.getElementById('exitoBar'); if(bar){ bar.classList.add('animate-pulse'); setTimeout(()=>bar.classList.remove('animate-pulse'), 600);}    
-    }
-
-    // ----------------------------
-    // JUEGO: economía simple dependiente de variables
-    // ----------------------------
-    function expectedPlayers(){
-      // Jugadores base escalados por Popularidad y Satisfacción; penalización por Riesgo alto
-      const base = 1000 + state.Popularidad * 20; // 1000–3000
-      const satFactor = 0.6 + (state.Satisfaccion/100)*0.8; // 0.6–1.4
-      const riskPenalty = 1 - Math.max(0, (state.Riesgo - 50))/200; // 1 → 0.75
-      const omniBoost = 1 + (state.Omnicanalidad>80 ? 0.1 : state.Omnicanalidad>60 ? 0.05 : 0);
-      return Math.max(100, Math.round(base * satFactor * riskPenalty * omniBoost));
-    }
-
-    function estimateRevenue(players){
-      // Ingreso unitario por canal (sala menor margen que online)
-      const unitSala = 22; // € promedio día por jugador en sala
-      const unitOnline = 28; // € online
-      const salaShare = state.Sala/100;
-      const onlineShare = state.Online/100;
-      const gross = players * (unitSala*salaShare + unitOnline*onlineShare);
-      const marginFactor = Math.max(0.1, state.Margen/100); // 0.1–1
-      return Math.round(gross * marginFactor);
-    }
-
-    function estimateCosts(){
-      // Costes: mayor sala, mayor coste; mayor riesgo → costes ocultos; omnicanalidad alta tiene coste mantenimiento
-      const fixed = 20000; // nóminas, alquiler, etc.
-      const salaCost = state.Sala * 120; // proporcional a peso sala
-      const omniCost = state.Omnicanalidad>80 ? 6000 : state.Omnicanalidad>60 ? 3000 : 1000;
-      const riskLeak = Math.max(0, state.Riesgo-50)*80; // fraudes, incidencias
-      return Math.round(fixed + salaCost + omniCost + riskLeak);
-    }
-
-    function tickDay(){
-      // Actualiza jugadores por tendencias y ruido
-      const target = expectedPlayers();
-      const delta = Math.round((target - state.players)*0.3 + rnd(-30, 30));
-      state.players = Math.max(50, state.players + delta);
-      // Ingresos y costes
-      const revenue = estimateRevenue(state.players);
-      const costs = estimateCosts();
-      const net = revenue - costs;
-      state.cash += net;
-      state.day += 1;
-      // Eventos aleatorios ligados a riesgo/popularidad
-      randomEvent();
-      // Actualiza UI
-      syncGamePanel();
-      updateAll();
-      // Breakdown
-      const bd = document.getElementById('breakdown');
-      if(bd){
-        bd.innerHTML = `
-          <li>Ingresos: <b>€${fmt(revenue)}</b></li>
-          <li>Costes: <b>€${fmt(costs)}</b></li>
-          <li>Resultado diario: <b class="${net>=0?'text-emerald-400':'text-rose-400'}">€${fmt(net)}</b></li>
-        `;
-      }
-    }
-
-    function randomEvent(){
-      const roll = Math.random();
-      // Probabilidad de evento negativo aumenta con Riesgo, positivo con Popularidad/Satisfacción
-      const pNeg = Math.min(0.6, 0.1 + state.Riesgo/200);
-      const pPos = Math.min(0.5, 0.05 + (state.Popularidad+state.Satisfaccion)/400);
-      if(roll < pNeg){
-        const type = Math.random();
-        if(type < 0.5){ state.cash -= 8000; state.Riesgo = clamp(state.Riesgo + 5); log('⚠️ Incidencia operativa: reparación urgente (−€8,000, +5 Riesgo)'); }
-        else { state.Satisfaccion = clamp(state.Satisfaccion - 4); log('😕 Quejas en redes: baja la satisfacción (−4)'); }
-      } else if(roll > 1 - pPos){
-        const type = Math.random();
-        if(type < 0.5){ state.cash += 6000; state.Popularidad = clamp(state.Popularidad + 4); log('🎉 Mini-viral en TikTok: +4 Popularidad, +€6,000'); }
-        else { state.Satisfaccion = clamp(state.Satisfaccion + 5); log('😊 Buenas reseñas: +5 Satisfacción'); }
-      }
-    }
-
-    function syncGamePanel(){
-      const euro = v=> new Intl.NumberFormat('es-ES').format(v);
-      document.getElementById('day').textContent = state.day;
-      document.getElementById('cash').textContent = euro(state.cash);
-      document.getElementById('players').textContent = state.players;
-      const est = estimateRevenue(state.players);
-      document.getElementById('revEst').textContent = euro(est);
-      document.getElementById('popVal').textContent = state.Popularidad;
-      document.getElementById('popBar').style.width = state.Popularidad+'%';
-      document.getElementById('riskVal').textContent = state.Riesgo;
-      document.getElementById('riskBar').style.width = state.Riesgo+'%';
-    }
-
-    function spend(amount){ state.cash -= amount; syncGamePanel(); }
-    function fmt(n){ return new Intl.NumberFormat('es-ES').format(n); }
-
-    function log(msg){
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="text-slate-400">Día ${state.day}:</span> ${msg}`;
-      const ul = document.getElementById('log');
-      ul.prepend(li);
-      // Limita log
-      while(ul.children.length>100) ul.removeChild(ul.lastChild);
-    }
-
-    // ----------------------------
-    // Inicialización y eventos UI
-    // ----------------------------
-    function init(){
-      load();
-      // Tabs
-      document.querySelectorAll('.tab').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          document.querySelectorAll('.tab').forEach(b=> b.classList.remove('bg-blue-600'));
-          btn.classList.add('bg-blue-600');
-          const t = btn.dataset.tab;
-          document.getElementById('tab-juego').classList.toggle('hidden', t!=='juego');
-          document.getElementById('tab-simulador').classList.toggle('hidden', t!=='simulador');
-        });
-      });
-
-      renderControls();
-      updateAll();
-      syncGamePanel();
-
-      // Botones juego
-      document.getElementById('btnTick').addEventListener('click', tickDay);
-      document.getElementById('btnTick7').addEventListener('click', ()=>{ for(let i=0;i<7;i++) tickDay(); });
-
-      document.getElementById('actOmni').addEventListener('click', ()=>{ if(state.cash<10000) return log('💸 Caja insuficiente para mejorar omnicanalidad'); state.Omnicanalidad = clamp(state.Omnicanalidad + 5); spend(10000); log('🔧 Mejoras omnicanalidad (+5)'); updateAll(); });
-      document.getElementById('actAtencion').addEventListener('click', ()=>{ if(state.cash<8000) return log('💸 Caja insuficiente para mejorar atención'); state.Satisfaccion = clamp(state.Satisfaccion + 5); spend(8000); log('🤝 Mejora de atención al cliente (+5 Satisfacción)'); updateAll(); });
-      document.getElementById('actSeguridad').addEventListener('click', ()=>{ if(state.cash<6000) return log('💸 Caja insuficiente para reforzar seguridad'); state.Riesgo = clamp(state.Riesgo - 7); spend(6000); log('🛡️ Seguridad reforzada (−7 Riesgo)'); updateAll(); });
-      document.getElementById('actBeneficios').addEventListener('click', ()=>{ state.Margen = clamp(state.Margen - 5); state.Satisfaccion = clamp(state.Satisfaccion + 6); log('🎁 Mejores beneficios: −5 Margen, +6 Satisfacción'); updateAll(); });
-
-      document.querySelectorAll('.scenario').forEach(btn => {
-        btn.addEventListener('click', () => applyScenario(btn.dataset.scenario, true));
-      });
-
-      const link = document.getElementById('linkSO');
-      if(link){
-        link.checked = !!state.linkSO;
-        link.addEventListener('change', ()=>{
-          if(link.checked){ state.Online = clamp(100 - state.Sala); updateControl('Online'); }
-          updateAll();
-        });
-      }
-
-      // Export / Import / Reset
-      document.getElementById('btnReset').addEventListener('click', () => {
-        localStorage.removeItem('everest_state');
-        Object.assign(state, { Omnicanalidad:55, Satisfaccion:75, Riesgo:35, Popularidad:60, Margen:55, Sala:50, Online:50, linkSO:true, day:1, cash:250000, players:2000 });
-        renderControls(); updateAll(); syncGamePanel();
-        const ul = document.getElementById('log'); ul.innerHTML='';
-        const bd = document.getElementById('breakdown'); if(bd) bd.innerHTML = '';
-      });
-
-      document.getElementById('btnExport').addEventListener('click', () => {
-        const data = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
-        const url = URL.createObjectURL(data);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'everest_state.json'; a.click();
-        URL.revokeObjectURL(url);
-      });
-
-      document.getElementById('fileImport').addEventListener('change', (e) => {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = () => { try{ const obj = JSON.parse(reader.result); Object.assign(state, obj); renderControls(); updateAll(); syncGamePanel(); log('📥 Estado importado.'); } catch(err){ alert('JSON inválido.'); } };
-        reader.readAsText(file);
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', init);
-  </script>
-</body>
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+  </body>
 </html>
