@@ -217,13 +217,29 @@
       // ========= EVENTOS CONTEXTUALES (España, sin TV) =========
       // Todos impactan Margen.
       const EVENT_TEMPLATES = {
-        // Sustituye "TV local" por earned media digital
-        media_buzz:  { title:'📰 Artículo orgánico en medio digital',
-          text:'Un medio digital generalista habla de tu app (mención orgánica, sin compra publicitaria).',
+        // Reemplazo por NUEVO REDISEÑO APP (con seguimiento si hay encuesta)
+        app_redesign:  { title:'📱 Nuevo rediseño de la app',
+          text:'Se prepara un rediseño que mejora rendimiento y previene errores.',
           options:[
-            { text:'Aprovechar con promo cruzada', impact:{ popularity:+5, satisfaction:+2, margin:-2, omnichannel_index:+4 } },
-            { text:'Dejarlo orgánico (sin coste)', impact:{ popularity:+3, margin:+0 } },
+            { text:'Aplicarla ya (downtime breve)', impact:{
+                satisfaction:+5, risk:-2, omnichannel_index:+6, online_activity:-8, margin:-3
+              } },
+            { text:'No aplicarla y lanzar encuesta', impact:{
+                popularity:+1, margin:-1,
+                __followup: {
+                  title:'🧪 Resultados de la encuesta',
+                  text:'Los clientes han opinado sobre el rediseño.',
+                  options:[
+                    { text:'Rediseño parcial (iterativo)', impact:{ satisfaction:+3, omnichannel_index:+3, margin:-1 } },
+                    { text:'Aplazar y reforzar estabilidad', impact:{ satisfaction:-2, risk:+2, margin:+1 } },
+                  ]
+                }
+              } },
+            { text:'Lanzarla solo en iOS', impact:{
+                satisfaction:+3, risk:-1, omnichannel_index:+3, online_activity:-3, margin:-2
+              } },
           ]},
+
         social_viral:{ title:'🎉 Mini-viral en TikTok',
           text:'Un clip de clientes se hace viral.',
           options:[
@@ -315,14 +331,15 @@
       function pickContextEvents(level, metrics, lastBias, biasStreak){
         const evs = [];
         const { popularity, risk, margin, omni, satisfaction } = metrics;
-        if (popularity > 75) evs.push('media_buzz');
+        // Rediseño de app es relevante si la satisfacción no es perfecta o si Omni es medio-bajo
+        if (satisfaction < 90 || omni < 80) evs.push('app_redesign');
         if (popularity > 60) evs.push('social_viral');
         if (risk > 60) evs.push('fraud_alert');
         if (margin < 40) evs.push('cost_spike');
         if (omni < 45) evs.push('low_omni');
         if (biasStreak>=2 && (lastBias==='online' || lastBias==='offline')) evs.push('imbalance');
         if (satisfaction < 50) evs.push('complaints');
-        if (evs.length===0) evs.push('media_buzz'); // fallback neutro (earned media)
+        if (evs.length===0) evs.push('app_redesign'); // fallback
         const n = Math.min(2, Math.max(1, Math.round(Math.random()*evs.length)));
         return evs.slice(0, n).map(k=>EVENT_TEMPLATES[k]);
       }
@@ -788,8 +805,12 @@
                   event={event}
                   onChoose={(impact) => {
                     onChooseOnce(impact, 0);
-                    setLog(prev => [{ month, text: event.title + ' — decisión aplicada' }, ...prev].slice(0,120));
+                    // Si este impacto trae un follow-up, lo inyectamos al inicio de la cola
                     const rest = eventQueue.slice(1);
+                    if (impact && impact.__followup) {
+                      rest.unshift(impact.__followup);
+                    }
+                    setLog(prev => [{ month, text: event.title + ' — decisión aplicada' }, ...prev].slice(0,120));
                     if(rest.length){ setEventQueue(rest); setEvent(rest[0]); setSelectedIndex(null); }
                     else { setEvent(null); setSelectedIndex(null); setMonth(m=>m+1); goNextLevel(); }
                   }}
