@@ -113,69 +113,47 @@
         { key:'captacion', title:'Campamento Base — Captación', scenarios: [
           // ====== BASE 1: Elegir tipo de captación ======
           {
-            id:'CAPT_1',
-            title:'Elige tu estrategia de Captación',
-            text:'Selecciona el canal principal para adquirir clientes:',
-            options:[
-              {
-                text:'Colaboradores de sala (bajo coste, poco margen, poco riesgo, sube omnicanalidad)',
-                impact:{
-                  LTV:+3, satisfaction:+2, risk:-4,
-                  omnichannel_index:+12, online_activity:+4, offline_activity:+10,
-                  popularity:+2, margin:-2
-                }
-              },
-              {
-                text:'RRSS y Buscadores (coste medio, riesgo medio, poca omnicanalidad)',
-                impact:{
-                  LTV:+4, satisfaction:+1, risk:+4,
-                  omnichannel_index:-2, online_activity:+10, offline_activity:+1,
-                  popularity:+6, margin:-4
-                }
-              },
-              {
-                text:'TV y Streamers (coste alto, riesgo alto, omnicanalidad media)',
-                impact:{
-                  LTV:+6, satisfaction:+1, risk:+8,
-                  omnichannel_index:+4, online_activity:+8, offline_activity:+2,
-                  popularity:+12, margin:-8
-                }
-              },
-            ]
-          },
-          // ====== BASE 2: Promoción en web + bono 200% + Free Spins ======
-          {
-            id:'CAPT_2',
-            title:'Promoción: Web + Bono 200% + Free Spins',
-            text:'Define el umbral de verificación y la segmentación del incentivo:',
-            options:[
-              {
-                text:'Lanzarla para todo el mundo sin verificar (más margen, más popularidad, más riesgo, omnicanalidad media)',
-                impact:{
-                  LTV:+3, satisfaction:+1, risk:+10,
-                  omnichannel_index:+2, online_activity:+8, offline_activity:+0,
-                  popularity:+8, margin:+4
-                }
-              },
-              {
-                text:'Solo clientes verificados (menos margen, menos riesgo, omnicanalidad media)',
-                impact:{
-                  LTV:+1, satisfaction:+2, risk:-8,
-                  omnichannel_index:+2, online_activity:+2, offline_activity:+0,
-                  popularity:-2, margin:-2
-                }
-              },
-              {
-                text:'Solo verificados + segmentar 50FS extra para registros (equilibrio, menos popularidad)',
-                impact:{
-                  LTV:+2, satisfaction:+3, risk:-6,
-                  omnichannel_index:+6, online_activity:+4, offline_activity:+1,
-                  popularity:-1, margin:-1
-                }
-              },
-            ]
-          },
-        ]},
+            scenarios: [
+  {
+    id:'CAPT_1',
+    title:'Estrategia de Captación',
+    text:'Selecciona el canal principal para adquirir nuevos clientes:',
+    options:[
+      {
+        text:'Colaboradores de sala',
+        impact:{ LTV:+3, satisfaction:+2, risk:-4, omnichannel_index:+12, online_activity:+4, offline_activity:+10, popularity:+2, margin:-2 }
+      },
+      {
+        text:'RRSS y buscadores',
+        impact:{ LTV:+4, satisfaction:+1, risk:+4, omnichannel_index:-2, online_activity:+10, offline_activity:+1, popularity:+6, margin:-4 }
+      },
+      {
+        text:'TV & streamers',
+        impact:{ LTV:+6, satisfaction:+1, risk:+8, omnichannel_index:+4, online_activity:+8, offline_activity:+2, popularity:+12, margin:-8 }
+      },
+    ]
+  },
+  {
+    id:'CAPT_2',
+    title:'Promoción de Bienvenida',
+    text:'Define el umbral de verificación y la segmentación del incentivo:',
+    options:[
+      {
+        text:'Acceso abierto (sin verificación previa)',
+        impact:{ LTV:+3, satisfaction:+1, risk:+10, omnichannel_index:+2, online_activity:+8, offline_activity:+0, popularity:+8, margin:+4 }
+      },
+      {
+        text:'Solo clientes verificados',
+        impact:{ LTV:+1, satisfaction:+2, risk:-8, omnichannel_index:+2, online_activity:+2, offline_activity:+0, popularity:-2, margin:-2 }
+      },
+      {
+        text:'Verificados + 50 Free Spins para registros desde los locales',
+        impact:{ LTV:+2, satisfaction:+3, risk:-6, omnichannel_index:+6, online_activity:+4, offline_activity:+3, popularity:+1, margin:-2 }
+      },
+    ]
+  },
+]
+
         { key:'activacion', title:'Campamento 1 — Activación', scenarios: [
           {
             id:'A1',
@@ -884,3 +862,4 @@
     </script>
   </body>
 </html>
+
