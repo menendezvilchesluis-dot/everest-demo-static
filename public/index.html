@@ -111,23 +111,68 @@
       // =======================
       const LEVELS = [
         { key:'captacion', title:'Campamento Base — Captación', scenarios: [
+          // ====== BASE 1: Elegir tipo de captación ======
           {
-            id:'C1',
-            title:'Haz Match con tu Slot Ideal',
-            text:'Promoción online de 5€/día durante 7 días.',
+            id:'CAPT_1',
+            title:'Elige tu estrategia de Captación',
+            text:'Selecciona el canal principal para adquirir clientes:',
             options:[
-              { text:'Lanzarla solo online',           impact:{ LTV:+4,  satisfaction:+1,  risk:+3,  omnichannel_index:-6, online_activity:+12, offline_activity:-10, popularity:+4, margin:-2 } },
-              { text:'Extenderla a clientes de sala',  impact:{ LTV:+3,  satisfaction:+5,  risk:+1,  omnichannel_index:+14, online_activity:+6,  offline_activity:+8,  popularity:+2, margin:-1 } },
-              { text:'Sustituir por invitación presencial', impact:{ LTV:+2,  satisfaction:+7,  risk:-1,  omnichannel_index:+4,  online_activity:-8,  offline_activity:+14, margin:-1 } },
+              {
+                text:'Colaboradores de sala (bajo coste, poco margen, poco riesgo, sube omnicanalidad)',
+                impact:{
+                  LTV:+3, satisfaction:+2, risk:-4,
+                  omnichannel_index:+12, online_activity:+4, offline_activity:+10,
+                  popularity:+2, margin:-2
+                }
+              },
+              {
+                text:'RRSS y Buscadores (coste medio, riesgo medio, poca omnicanalidad)',
+                impact:{
+                  LTV:+4, satisfaction:+1, risk:+4,
+                  omnichannel_index:-2, online_activity:+10, offline_activity:+1,
+                  popularity:+6, margin:-4
+                }
+              },
+              {
+                text:'TV y Streamers (coste alto, riesgo alto, omnicanalidad media)',
+                impact:{
+                  LTV:+6, satisfaction:+1, risk:+8,
+                  omnichannel_index:+4, online_activity:+8, offline_activity:+2,
+                  popularity:+12, margin:-8
+                }
+              },
             ]
           },
+          // ====== BASE 2: Promoción en web + bono 200% + Free Spins ======
           {
-            id:'C2',
-            title:'Registro cruzado en sala',
-            text:'Regístrate online desde el local y recibe consumición.',
+            id:'CAPT_2',
+            title:'Promoción: Web + Bono 200% + Free Spins',
+            text:'Define el umbral de verificación y la segmentación del incentivo:',
             options:[
-              { text:'Activar en 5 locales piloto',  impact:{ LTV:+4, satisfaction:+4, risk:+1,  omnichannel_index:+10, online_activity:+6,  offline_activity:+6, popularity:+3, margin:-1 } },
-              { text:'Activar en toda la red',       impact:{ LTV:+6, satisfaction:+5, risk:+4,  omnichannel_index:+12, online_activity:+10, offline_activity:+8, popularity:+6, margin:-2 } },
+              {
+                text:'Lanzarla para todo el mundo sin verificar (más margen, más popularidad, más riesgo, omnicanalidad media)',
+                impact:{
+                  LTV:+3, satisfaction:+1, risk:+10,
+                  omnichannel_index:+2, online_activity:+8, offline_activity:+0,
+                  popularity:+8, margin:+4
+                }
+              },
+              {
+                text:'Solo clientes verificados (menos margen, menos riesgo, omnicanalidad media)',
+                impact:{
+                  LTV:+1, satisfaction:+2, risk:-8,
+                  omnichannel_index:+2, online_activity:+2, offline_activity:+0,
+                  popularity:-2, margin:-2
+                }
+              },
+              {
+                text:'Solo verificados + segmentar 50FS extra para registros (equilibrio, menos popularidad)',
+                impact:{
+                  LTV:+2, satisfaction:+3, risk:-6,
+                  omnichannel_index:+6, online_activity:+4, offline_activity:+1,
+                  popularity:-1, margin:-1
+                }
+              },
             ]
           },
         ]},
