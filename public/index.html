@@ -110,50 +110,46 @@
       // CONTENIDO: CARTAS
       // =======================
       const LEVELS = [
-        { key:'captacion', title:'Campamento Base — Captación', scenarios: [
-          // ====== BASE 1: Elegir tipo de captación ======
+        { key:'captacion', title:'Campamento 0 — Captación', scenarios: [
           {
-            scenarios: [
-  {
-    id:'CAPT_1',
-    title:'Estrategia de Captación',
-    text:'Selecciona el canal principal para adquirir nuevos clientes:',
-    options:[
-      {
-        text:'Colaboradores de sala',
-        impact:{ LTV:+3, satisfaction:+2, risk:-4, omnichannel_index:+12, online_activity:+4, offline_activity:+10, popularity:+2, margin:-2 }
-      },
-      {
-        text:'RRSS y buscadores',
-        impact:{ LTV:+4, satisfaction:+1, risk:+4, omnichannel_index:-2, online_activity:+10, offline_activity:+1, popularity:+6, margin:-4 }
-      },
-      {
-        text:'TV & streamers',
-        impact:{ LTV:+6, satisfaction:+1, risk:+8, omnichannel_index:+4, online_activity:+8, offline_activity:+2, popularity:+12, margin:-8 }
-      },
-    ]
-  },
-  {
-    id:'CAPT_2',
-    title:'Promoción de Bienvenida',
-    text:'Define el umbral de verificación y la segmentación del incentivo:',
-    options:[
-      {
-        text:'Acceso abierto (sin verificación previa)',
-        impact:{ LTV:+3, satisfaction:+1, risk:+10, omnichannel_index:+2, online_activity:+8, offline_activity:+0, popularity:+8, margin:+4 }
-      },
-      {
-        text:'Solo clientes verificados',
-        impact:{ LTV:+1, satisfaction:+2, risk:-8, omnichannel_index:+2, online_activity:+2, offline_activity:+0, popularity:-2, margin:-2 }
-      },
-      {
-        text:'Verificados + 50 Free Spins para registros desde los locales',
-        impact:{ LTV:+2, satisfaction:+3, risk:-6, omnichannel_index:+6, online_activity:+4, offline_activity:+3, popularity:+1, margin:-2 }
-      },
-    ]
-  },
-]
-
+            id:'CAPT_1',
+            title:'Estrategia de Captación',
+            text:'Selecciona el canal principal para adquirir nuevos clientes:',
+            options:[
+              {
+                text:'Colaboradores de sala',
+                impact:{ LTV:+3, satisfaction:+2, risk:-4, omnichannel_index:+12, online_activity:+4, offline_activity:+10, popularity:+2, margin:-2 }
+              },
+              {
+                text:'RRSS y buscadores',
+                impact:{ LTV:+4, satisfaction:+1, risk:+4, omnichannel_index:-2, online_activity:+10, offline_activity:+1, popularity:+6, margin:-4 }
+              },
+              {
+                text:'TV & streamers',
+                impact:{ LTV:+6, satisfaction:+1, risk:+8, omnichannel_index:+4, online_activity:+8, offline_activity:+2, popularity:+12, margin:-8 }
+              },
+            ]
+          },
+          {
+            id:'CAPT_2',
+            title:'Promoción de Bienvenida',
+            text:'Define el umbral de verificación y la segmentación del incentivo:',
+            options:[
+              {
+                text:'Acceso abierto (sin verificación previa)',
+                impact:{ LTV:+3, satisfaction:+1, risk:+10, omnichannel_index:+2, online_activity:+8, offline_activity:+0, popularity:+8, margin:+4 }
+              },
+              {
+                text:'Solo clientes verificados',
+                impact:{ LTV:+1, satisfaction:+2, risk:-8, omnichannel_index:+2, online_activity:+2, offline_activity:+0, popularity:-2, margin:-2 }
+              },
+              {
+                text:'Verificados + 50 Free Spins para registros desde los locales',
+                impact:{ LTV:+2, satisfaction:+3, risk:-6, omnichannel_index:+6, online_activity:+4, offline_activity:+3, popularity:+1, margin:-2 }
+              },
+            ]
+          },
+        ]},
         { key:'activacion', title:'Campamento 1 — Activación', scenarios: [
           {
             id:'A1',
@@ -862,4 +858,5 @@
     </script>
   </body>
 </html>
+
 
