@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pause & Play — Everest Omnicanal (Juego)</title>
+    <title>Pause & Play: Rumbo a la Cima</title>
     <link rel="icon" href="data:,">
 
     <!-- Tailwind (CDN) -->
@@ -21,7 +21,6 @@
       .btn:disabled { opacity:.5; cursor:not-allowed; }
       .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
       .badge { font-size:.7rem; padding:.15rem .45rem; border:1px solid #4b5563; border-radius:.45rem; background:#111827; }
-      .logbox { max-height: 320px; overflow: auto; }
     </style>
 
     <!-- React + ReactDOM -->
@@ -38,25 +37,22 @@
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <script type="text/babel" data-presets="react">
-      // ====== Framer Motion (fallback seguro) ======
       const FM = window['framer-motion'] || {};
       const motion = FM.motion || new Proxy({}, { get: () => (props) => React.createElement('div', props) });
       const AnimatePresence = FM.AnimatePresence || (({children}) => children);
 
-      const { useState, useMemo, useEffect } = React;
+      const { useState, useMemo } = React;
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       const rnd = (n) => Math.round(n);
 
-      // =======================
-      // DIFICULTAD / ECONOMÍA
-      // =======================
+      // ============== Dificultad / Economía (versión endurecida) ==============
       const DIFFICULTY = {
-        posScale: 0.6,       // subir cuesta más
-        negScale: 1.25,      // castigo mayor
+        posScale: 0.6,
+        negScale: 1.25,
         softCaps: {
           ltv:           [70, 78, 85, 92, 96, 100],
           satisfaction:  [80, 86, 90, 94, 97, 100],
-          omni:          [75, 82, 88, 93, 97, 100],
+          omni:          [68, 74, 80, 86, 92, 100], // Omni cap más bajo hasta etapa 5
           online:        [82, 88, 92, 95, 98, 100],
           offline:       [82, 88, 92, 95, 98, 100],
           popularity:    [85, 90, 94, 97, 99, 100],
@@ -72,7 +68,6 @@
         const caps = DIFFICULTY.softCaps[metric] || [100,100,100,100,100,100];
         return caps[Math.min(levelIndex, caps.length-1)];
       };
-
       const applyPosWithCaps = (current, delta, cap) => {
         if (delta <= 0) return delta;
         let d = delta * DIFFICULTY.posScale;
@@ -81,20 +76,27 @@
           const factor = clamp(1 - ((current - start) / (100 - start)), 0.15, 1);
           d *= factor;
         }
-        if (current >= cap) {
-          d *= 0.15;
-        } else if (current + d > cap) {
-          const extra = (current + d) - cap;
-          d -= extra * 0.6;
-        }
+        if (current >= cap) d *= 0.15;
+        else if (current + d > cap) d -= ((current + d) - cap) * 0.6;
         return d;
       };
+      const applyNegWithDifficulty = (delta) => delta >= 0 ? delta : delta * DIFFICULTY.negScale;
 
-      const applyNegWithDifficulty = (delta) => {
-        if (delta >= 0) return delta;
-        return delta * DIFFICULTY.negScale;
+      // Enfasis por etapa (multiplica impacto directo)
+      const STAGE_WEIGHTS = [
+        { omni:0.7,  on:0.8,  off:0.8,  risk:1.1, sat:1.2, mar:1.2, pop:1.4, ltv:1.0 }, // 0 Captación
+        { omni:0.8,  on:0.9,  off:0.9,  risk:1.1, sat:1.2, mar:1.2, pop:1.3, ltv:1.0 }, // 1 Activación
+        { omni:0.9,  on:1.3,  off:1.3,  risk:1.0, sat:1.1, mar:1.0, pop:1.0, ltv:1.1 }, // 2 Retención
+        { omni:0.6,  on:0.8,  off:0.8,  risk:1.6, sat:1.0, mar:1.2, pop:0.9, ltv:1.0 }, // 3 Riesgo
+        { omni:1.6,  on:1.5,  off:1.5,  risk:0.9, sat:1.2, mar:0.9, pop:0.9, ltv:1.1 }, // 4 Fidelización
+        { omni:1.2,  on:1.1,  off:1.1,  risk:1.0, sat:1.1, mar:1.1, pop:1.1, ltv:1.2 }, // 5 Consolidación
+      ];
+      // Topes por click (evita picos)
+      const MAX_STEP = {
+        omni: [3,3,4,5,6,10], on:[5,5,6,6,7,10], off:[5,5,6,6,7,10],
+        sat:[4,5,5,5,6,8], risk:[6,6,6,8,6,6], mar:[4,5,5,6,5,6],
+        pop:[6,6,5,4,4,6], ltv:[3,4,5,5,6,8]
       };
-
       const biasOfImpact = (impact) => {
         const on = impact.online ?? impact.online_activity ?? 0;
         const off = impact.offline ?? impact.offline_activity ?? 0;
@@ -103,14 +105,11 @@
         return 'balanced';
       };
 
-      // =======================
-      // UI BÁSICA
-      // =======================
+      // ======================= UI básicas =======================
       const ProgressBar = ({ value=0, color='#ef4444' }) => {
         const v = clamp(Math.round(value), 0, 100);
         return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
       };
-
       function HUD({ ltv, omni, satisfaction, risk, online, offline, popularity, margin }) {
         const items = [
           {label:'💰 LTV',val:rnd(ltv),color:'#22c55e'},
@@ -140,7 +139,6 @@
           </div>
         );
       }
-
       function SuccessPanel({ success }){
         const tag = success<40 ? 'fracaso' : success<60 ? 'inestable' : success<75 ? 'correcto' : success<90 ? 'muy bueno' : 'excelencia';
         const color = success>=90? '#16a34a' : success>=75? '#22c55e' : success>=60? '#f59e0b' : success>=40? '#fbbf24' : '#ef4444';
@@ -159,230 +157,161 @@
           </div>
         );
       }
-
       function TransitionTime({ months, onEnd }) {
         const labels = { 1:"📅 1 mes después...", 3:"📅 3 meses después...", 6:"📅 6 meses después...", 9:"📅 9 meses después...", 12:"📅 1 año después..." };
         return (
           <motion.div
             className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2 }}
-            onAnimationComplete={() => setTimeout(onEnd, 1000)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 1.2 }} onAnimationComplete={() => setTimeout(onEnd, 1000)}
           >
             {labels[months] || "📅 Tiempo después..."}
           </motion.div>
         );
       }
 
-      // =======================
-      // CONTENIDO (tus textos)
-      // Nota: monthsAfter = tiempo de transición hacia el SIGUIENTE campamento
-      // =======================
+      // =================== Contenido (Etapas) ===================
       const LEVELS = [
-        {
-          key:"captacion", monthsAfter:1, title:"🏕️ Campamento 0 — Captación",
+        { key:"captacion", monthsAfter:1, title:"Etapa 1 — Captación",
           bases:[
-            {
-              title:"Estrategias de captación",
-              desc:"Vías de captación de clientes para el Casino:",
+            { title:"Estrategias de captación", desc:"Vías de captación de clientes para el Casino:",
               options:[
                 { text:"Campañas SEO + SEM.", impact:{ margin:+4, risk:+1, popularity:+3, omni:+1, online:+2 } },
                 { text:"Acuerdos con Streamers.", impact:{ margin:-3, risk:+3, popularity:+5, omni:+1, online:+3 } },
                 { text:"Campañas de registro desde los locales.", impact:{ margin:+1, risk:+1, popularity:+2, omni:+4, offline:+3 } },
-              ]
-            },
-            {
-              title:"Promoción de bienvenida",
-              desc:"Promoción que utilizaremos para potenciar los registros:",
+              ]},
+            { title:"Promoción de bienvenida", desc:"Promoción que utilizaremos para potenciar los registros:",
               options:[
                 { text:"200% de primer depósito.", impact:{ margin:-2, risk:+2, popularity:+4 } },
                 { text:"20€ sin depósito.", impact:{ margin:-3, risk:+3, popularity:+3 } },
                 { text:"Sin bono (Marca premium).", impact:{ margin:+3, risk:-2, popularity:-1 } },
-              ]
-            },
+              ]},
           ],
-          event:{
-            title:"¡Necesitamos registros!",
-            desc:"Quieres hacer push para potenciar registros durante un mes:",
+          event:{ title:"¡Necesitamos registros!", desc:"Quieres hacer push para potenciar registros durante un mes:",
             options:[
               { text:"Competición de registros desde los locales con Ranking.", impact:{ popularity:+3, omni:+2, risk:+1, offline:+2 } },
               { text:"Campaña de Twitch con Streamer TOP.", impact:{ popularity:+4, margin:-2, risk:+2, online:+2 } },
               { text:"Sin evento (Ahorro).", impact:{ margin:+2 } },
-            ]
-          }
+            ]}
         },
-        {
-          key:"activacion", monthsAfter:3, title:"⚡ Campamento 1 — Activación",
+        { key:"activacion", monthsAfter:3, title:"Etapa 2 — Activación",
           bases:[
-            {
-              title:"Clientes registrados sin verificación",
-              desc:"El 45% de los nuevos registros no han completado su verificación:",
+            { title:"Clientes registrados sin verificación", desc:"El 45% de los nuevos registros no han completado su verificación:",
               options:[
                 { text:"Bloqueo de cuenta hasta su verificación.", impact:{ risk:-3, satisfaction:-3, popularity:-2 } },
                 { text:"Activar promociones únicamente para clientes verificados.", impact:{ risk:-2, satisfaction:0, omni:+1 } },
                 { text:"No intervenir y esperar acción del cliente.", impact:{ risk:+3, satisfaction:-1 } },
-              ]
-            },
-            {
-              title:"Clientes activos sin primer depósito",
-              desc:"Los jugadores han jugado en modo demo o navegan por la app, pero aún no depositan:",
+              ]},
+            { title:"Clientes activos sin primer depósito", desc:"Han jugado en demo o navegan la app, pero aún no depositan:",
               options:[
                 { text:"Estrategia de mailing con bono de bienvenida.", impact:{ margin:-1, popularity:+3 } },
-                { text:"Crear campaña agresiva de urgencia: “Deposita hoy y obtén un 300% de tu primer depósito”.", impact:{ margin:-3, risk:+2, popularity:+4 } },
-                { text:"Campaña de llamadas desde Atención al Cliente + Sala con promoción exclusiva.", impact:{ margin:-2, omni:+3, popularity:+2 } },
+                { text:"Campaña de urgencia “Deposita hoy y obtén un 300%”.", impact:{ margin:-3, risk:+2, popularity:+4 } },
+                { text:"Llamadas desde Atención al Cliente + Sala con promoción exclusiva.", impact:{ margin:-2, omni:+3, popularity:+2 } },
                 { text:"No intervenir y esperar acción del cliente.", impact:{ margin:+1, satisfaction:-2 } },
-              ]
-            },
+              ]},
           ],
-          event:{
-            title:"Fallo en la web",
-            desc:"Durante la campaña de activación, Alira se cae durante 4 horas. Los usuarios no pueden completar su verificación ni acceder al bono:",
+          event:{ title:"Fallo en la web", desc:"Alira se cae 4h. No pueden verificar ni acceder al bono:",
             options:[
               { text:"Comunicar en web y publicar promoción en compensación.", impact:{ satisfaction:+4, margin:-2 } },
-              { text:"Enviar promoción únicamente a clientes molestos que presenten quejas.", impact:{ satisfaction:+2, margin:-1 } },
-              { text:"Ignorar el problema y priorizar la campaña una vez se reanude.", impact:{ risk:+3, satisfaction:-3 } },
-            ]
-          }
+              { text:"Promoción solo a clientes molestos.", impact:{ satisfaction:+2, margin:-1 } },
+              { text:"Ignorar y priorizar la campaña al reanudarse.", impact:{ risk:+3, satisfaction:-3 } },
+            ]}
         },
-        {
-          key:"retencion", monthsAfter:6, title:"🔁 Campamento 2 — Retención",
+        { key:"retencion", monthsAfter:6, title:"Etapa 3 — Retención",
           bases:[
-            {
-              title:"Caída de actividad tras el primer depósito",
-              desc:"Detectas una bajada del rendimiento tras una gran campaña de activación:",
+            { title:"Caída de actividad tras el primer depósito", desc:"Baja el rendimiento tras la gran activación:",
               options:[
-                { text:"Campaña para invitar a los clientes a una fiesta de Casino Online en los locales Pause&Play.", impact:{ offline:+3, omni:+2, popularity:+3, margin:-1 } },
+                { text:"Fiesta de Casino Online en los locales Pause&Play.", impact:{ offline:+3, omni:+2, popularity:+3, margin:-1 } },
                 { text:"Rediseño de la web para darle otro enfoque.", impact:{ online:+3, satisfaction:+3, margin:-2 } },
-                { text:"Lanzamiento de la APP CasinoPause&Play (requiere inversión alta pero mejora experiencia a largo plazo).", impact:{ omni:+4, online:+3, margin:-3, satisfaction:+2 } },
-              ]
-            },
-            {
-              title:"Baja participación de los clientes en promociones semanales",
-              desc:"El calendario de promociones online no tiene buena acogida en jugadores regulares. El ROI de las campañas está cayendo y se evalúa cómo reactivar el interés:",
+                { text:"Lanzamiento de la APP (inversión alta, mejora a largo plazo).", impact:{ omni:+4, online:+3, margin:-3, satisfaction:+2 } },
+              ]},
+            { title:"Baja participación en promociones semanales", desc:"El ROI cae; buscamos reactivar interés:",
               options:[
-                { text:"Segmentar las promociones por valor para hacerlas más atractivas.", impact:{ satisfaction:+3, margin:-1 } },
-                { text:"Duplicar las promociones durante un tiempo para incentivar su uso.", impact:{ satisfaction:+4, margin:-3, risk:+1 } },
-                { text:"Crear nuevos formatos (desafíos semanales, minijuegos propios, ...).", impact:{ satisfaction:+3, popularity:+3, margin:-2 } },
-              ]
-            },
+                { text:"Segmentar por valor.", impact:{ satisfaction:+3, margin:-1 } },
+                { text:"Duplicar promociones por tiempo limitado.", impact:{ satisfaction:+4, margin:-3, risk:+1 } },
+                { text:"Nuevos formatos (desafíos, minijuegos propios).", impact:{ satisfaction:+3, popularity:+3, margin:-2 } },
+              ]},
           ],
-          event:{
-            title:"Nuevo Lanzamiento",
-            desc:"Un proveedor TOP nos elige para darnos en exclusiva su lanzamiento más esperado del año:",
+          event:{ title:"Nuevo Lanzamiento", desc:"Proveedor TOP nos da su lanzamiento estrella en exclusiva:",
             options:[
-              { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ popularity:+4, margin:-2, omni:+2 } },
-              { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+3, popularity:+2, margin:-1 } },
-              { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ offline:+3, omni:+3, margin:-2 } },
-            ]
-          }
+              { text:"Campaña multicanal + posicionamiento premium web.", impact:{ popularity:+4, margin:-2, omni:+2 } },
+              { text:"Lanzamiento anticipado 2 días para VIP.", impact:{ satisfaction:+3, popularity:+2, margin:-1 } },
+              { text:"FreeSpins exclusivos para clientes de locales.", impact:{ offline:+3, omni:+3, margin:-2 } },
+            ]}
         },
-        {
-          key:"riesgo", monthsAfter:9, title:"⚖️ Campamento 3 — Riesgo",
+        { key:"riesgo", monthsAfter:9, title:"Etapa 4 — Riesgo",
           bases:[
-            {
-              title:"Jugador intensivo Omnicanal",
-              desc:"Un cliente con alta actividad tanto en sala como online muestra sesiones muy prolongadas y depósitos frecuentes. Su comportamiento genera preocupación en el equipo:",
+            { title:"Jugador intensivo Omnicanal", desc:"Sesiones muy largas + depósitos frecuentes:",
               options:[
-                { text:"Hacer estudio de riesgo y reducir privilegios si estos dan positivo.", impact:{ risk:-4, satisfaction:-2 } },
-                { text:"Enviar una comunicación responsable con información sobre juego seguro.", impact:{ risk:-2, satisfaction:0 } },
-                { text:"Seguimiento discreto hasta detectar patrones más fuertes y claros.", impact:{ risk:-1, satisfaction:0 } },
-              ]
-            },
-            {
-              title:"Solicitud de exclusión voluntaria",
-              desc:"Cliente con alta actividad nos pide tomarse un descanso:",
+                { text:"Estudio de riesgo y reducción de privilegios si procede.", impact:{ risk:-4, satisfaction:-2 } },
+                { text:"Comunicación responsable sobre juego seguro.", impact:{ risk:-2, satisfaction:0 } },
+                { text:"Seguimiento discreto hasta patrones más fuertes.", impact:{ risk:-1, satisfaction:0 } },
+              ]},
+            { title:"Solicitud de exclusión voluntaria", desc:"Cliente de alta actividad pide descanso:",
               options:[
-                { text:"Bloqueo de cuenta inmediato y pedirle que solicite autoexclusión por el tiempo que considere.", impact:{ risk:-3, satisfaction:-2 } },
-                { text:"Contactar con él para analizar qué riesgos manifiesta. (Si elige esta última opción añadir una nota extra).", impact:{ satisfaction:+1, risk:-2 } },
-                { text:"Intento de disuasión sugiriendo una bajada de límites y tratar de retrasar el trámite.", impact:{ risk:+2, margin:+1, satisfaction:-3 } },
-              ]
-            },
+                { text:"Bloqueo inmediato y solicitar autoexclusión.", impact:{ risk:-3, satisfaction:-2 } },
+                { text:"Contactar para analizar riesgos (nota en RGIAJ si procede).", impact:{ satisfaction:+1, risk:-2 } },
+                { text:"Intento de disuasión con bajada de límites.", impact:{ risk:+2, margin:+1, satisfaction:-3 } },
+              ]},
           ],
-          event:{
-            title:"Nueva regulación",
-            desc:"La DGOJ anuncia una nueva norma que exige avisos de pausa automática y límites por defecto más bajos. El equipo debe decidir cómo implementar el cambio antes de la fecha límite:",
+          event:{ title:"Nueva regulación", desc:"DGOJ exige pausas automáticas y límites por defecto más bajos:",
             options:[
-              { text:"Adelantar el cumplimiento y aplicar los límites cuanto antes para estar preparados.", impact:{ risk:-4, margin:-1, popularity:+1 } },
-              { text:"Plan gradual aplicándolo únicamente a nuevos clientes y luego extenderlo al resto.", impact:{ risk:-2, satisfaction:+1 } },
-              { text:"Esperar a la publicación oficial y retrasar su aplicación hasta el último día.", impact:{ risk:+2, margin:+2 } },
-            ]
-          }
+              { text:"Adelantar cumplimiento.", impact:{ risk:-4, margin:-1, popularity:+1 } },
+              { text:"Plan gradual: primero nuevos, luego resto.", impact:{ risk:-2, satisfaction:+1 } },
+              { text:"Esperar al último día.", impact:{ risk:+2, margin:+2 } },
+            ]}
         },
-        {
-          key:"fidelizacion", monthsAfter:12, title:"🏆 Campamento 4 — Fidelización",
+        { key:"fidelizacion", monthsAfter:12, title:"Etapa 5 — Fidelización",
           bases:[
-            {
-              title:"Club VIP Omnicanal",
-              desc:"Tras meses de crecimiento digital, se plantea integrar los programas de fidelización de salas físicas y online bajo una misma marca: Club VIP Omnicanal. El objetivo: unificar beneficios y crear una experiencia continua para los jugadores más valiosos:",
+            { title:"Club VIP Omnicanal", desc:"Unificar beneficios para experiencia continua de alto valor:",
               options:[
-                { text:"Modelo conjunto. Un solo club con puntos acumulables en ambos canales y beneficios cruzados.", impact:{ satisfaction:+3, omni:+4, margin:-1 } },
-                { text:"Modelo espejo. Beneficios más fuertes en online para los clientes de sala y beneficios más fuertes en sala para clientes online.", impact:{ satisfaction:+2, omni:+3 } },
-                { text:"Modelo paralelo. Club VIP conjunto pero manteniendo las preferencias de cada cliente.", impact:{ satisfaction:+1, margin:+1 } },
-              ]
-            },
-            {
-              title:"Diseño de beneficios y recompensas",
-              desc:"El club necesita una propuesta de valor clara para retener y motivar sin generar dependencia:",
+                { text:"Modelo conjunto (puntos y perks cruzados).", impact:{ satisfaction:+3, omni:+4, margin:-1 } },
+                { text:"Modelo espejo (fortalezas cruzadas por canal).", impact:{ satisfaction:+2, omni:+3 } },
+                { text:"Modelo paralelo (preferencias por cliente).", impact:{ satisfaction:+1, margin:+1 } },
+              ]},
+            { title:"Beneficios y recompensas", desc:"Retener y motivar sin dependencia:",
               options:[
-                { text:"Experiencias exclusivas como viajes, eventos, regalos.", impact:{ satisfaction:+4, popularity:+2, margin:-2 } },
-                { text:"Recompensas web. Mejoras en promociones como cashback, misiones VIP, atención personalizada,...", impact:{ satisfaction:+3, margin:-1, popularity:+1 } },
-                { text:"Reconocimientos simbólicos. Trofeos digitales, distintivos visuales para sus cuentas, comunicación preferente,...", impact:{ satisfaction:+2, popularity:+1 } },
-                { text:"Bonificación agresiva. Promociones continuas y altos porcentajes de Cashbacks.", impact:{ satisfaction:+3, risk:+3, margin:-3 } },
-              ]
-            },
+                { text:"Experiencias exclusivas (viajes, eventos, regalos).", impact:{ satisfaction:+4, popularity:+2, margin:-2 } },
+                { text:"Recompensas web (cashback, misiones VIP, atención).", impact:{ satisfaction:+3, margin:-1, popularity:+1 } },
+                { text:"Reconocimientos simbólicos (trofeos, distintivos).", impact:{ satisfaction:+2, popularity:+1 } },
+                { text:"Bonificación agresiva (cashbacks altos continuos).", impact:{ satisfaction:+3, risk:+3, margin:-3 } },
+              ]},
           ],
-          event:{
-            title:"¡Quiero mi promoción!",
-            desc:"Un grupo de jugadores regulares (no VIP) se queja en redes sociales por los beneficios exclusivos del club, acusando trato desigual y falta de transparencia:",
+          event:{ title:"¡Quiero mi promoción!", desc:"No VIPs se quejan en redes por trato desigual:",
             options:[
-              { text:"Explicación sobre la meritocracia del club y transparencia con criterios de acceso.", impact:{ popularity:+2, satisfaction:+2 } },
-              { text:"Abrir una sección intermedia con categorías (plata/oro) y mejoras de menor nivel.", impact:{ satisfaction:+3, margin:-1 } },
-              { text:"Mantener la exclusividad del club priorizando prestigio y diferenciación.", impact:{ satisfaction:-1, margin:+2 } },
-            ]
-          }
+              { text:"Transparencia y meritocracia (criterios de acceso).", impact:{ popularity:+2, satisfaction:+2 } },
+              { text:"Crear niveles intermedios (plata/oro).", impact:{ satisfaction:+3, margin:-1 } },
+              { text:"Mantener exclusividad (prestigio/diferenciación).", impact:{ satisfaction:-1, margin:+2 } },
+            ]}
         },
-        {
-          key:"consolidacion", monthsAfter:0, title:"🏔️ Campamento 5 — Consolidación de Marca",
+        { key:"consolidacion", monthsAfter:0, title:"Etapa 6 — Consolidación de Marca",
           bases:[
-            {
-              title:"Pause&PlayBet.es",
-              desc:"La empresa recibe la licencia de juego AADD para operar apuestas deportivas en España. El hito representa un avance clave en la consolidación de la marca como operador regulado y omnicanal. El reto ahora es decidir cómo enfocar el lanzamiento para maximizar reputación, confianza y crecimiento sostenible:",
+            { title:"Pause&PlayBet.es", desc:"Licencia AADD para apuestas deportivas; enfoque de lanzamiento:",
               options:[
-                { text:"Lanzar una nueva marca específica para apuestas deportivas, con identidad y público propio.", impact:{ popularity:+3, margin:-2, omni:+1 } },
-                { text:"Integrar las apuestas deportivas dentro del casino, manteniendo una marca única y coherente.", impact:{ popularity:+2, omni:+3, margin:0 } },
-                { text:"Crear una submarca vinculada (ej. pauseandplaybet.es), con identidad propia pero bajo el paraguas corporativo.", impact:{ popularity:+3, margin:+1, omni:+2 } },
-              ]
-            },
-            {
-              title:"Experiencia Total Omnicanal",
-              desc:"Pause & Play quiere consolidar su modelo omnicanal conectando completamente la experiencia física y digital. La dirección estudia incorporar terminales de apuestas deportivas en los locales, integradas con las cuentas online:",
+                { text:"Nueva marca específica solo de apuestas.", impact:{ popularity:+3, margin:-2, omni:+1 } },
+                { text:"Integrar apuestas dentro del casino (marca única).", impact:{ popularity:+2, omni:+3, margin:0 } },
+                { text:"Submarca vinculada (pauseandplaybet.es).", impact:{ popularity:+3, margin:+1, omni:+2 } },
+              ]},
+            { title:"Experiencia Total Omnicanal", desc:"Terminales presenciales integradas con cuentas online:",
               options:[
-                { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ offline:+3, omni:+3, margin:-2 } },
-                { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ offline:+2, omni:+2, margin:0 } },
-                { text:"Priorizar comunidades con mayor madurez digital y permisos favorables para optimizar recursos.", impact:{ omni:+3, margin:+1, risk:-1 } },
-              ]
-            },
+                { text:"Instalar en todos los locales y comunicar salto tech.", impact:{ offline:+3, omni:+3, margin:-2 } },
+                { text:"Piloto en centros estratégicos y escalar por resultados.", impact:{ offline:+2, omni:+2, margin:0 } },
+                { text:"Priorizar comunidades con mayor madurez digital.", impact:{ omni:+3, margin:+1, risk:-1 } },
+              ]},
           ],
-          event:{
-            title:"Siguientes pasos",
-            desc:"Después de años de evolución, Pause & Play ha alcanzado la cima del sector como operador omnicanal con presencia nacional y licencia AADD. El éxito es innegable… pero también lo es la responsabilidad de liderar el futuro del entretenimiento regulado. La dirección debe decidir cuál será el rumbo de la compañía en esta nueva era:",
+          event:{ title:"Siguientes pasos", desc:"Cima nacional lograda; siguiente rumbo:",
             options:[
-              { text:"Expandir fronteras. Llevar el modelo Pause & Play a nuevos países, replicando la experiencia omnicanal a nivel internacional.", impact:{ popularity:+4, risk:+2, margin:-2 } },
-              { text:"Innovar la experiencia. Apostar por nuevas tecnologías (IA, VR, streaming) para reinventar el entretenimiento físico y digital.", impact:{ satisfaction:+4, risk:+1, margin:-1 } },
-              { text:"Diversificar el negocio. Abrir nuevas líneas de ocio bajo el sello Pause & Play.", impact:{ margin:+3, risk:0, popularity:+2 } },
-            ]
-          }
+              { text:"Expandir a otros países (modelo omnicanal).", impact:{ popularity:+4, risk:+2, margin:-2 } },
+              { text:"Innovar experiencia (IA, VR, streaming).", impact:{ satisfaction:+4, risk:+1, margin:-1 } },
+              { text:"Diversificar ocio bajo el sello Pause&Play.", impact:{ margin:+3, risk:0, popularity:+2 } },
+            ]}
         },
       ];
 
-      // =======================
-      // MOTOR DE IMPACTOS (equilibrio y coherencia)
-      // =======================
+      // =================== Motor con énfasis y trade-offs ===================
       function applyImpactToState(state, impact, levelIndex, lastBias, biasStreak) {
-        // normaliza nombres
-        const d = {
+        const w = STAGE_WEIGHTS[Math.min(levelIndex, STAGE_WEIGHTS.length-1)];
+        const dRaw = {
           ltv: impact.LTV ?? 0,
           sat: impact.satisfaction ?? 0,
           risk: impact.risk ?? 0,
@@ -392,122 +321,88 @@
           pop: impact.popularity ?? 0,
           mar: impact.margin ?? 0
         };
-
-        // caps
+        const d = {
+          ltv: dRaw.ltv * w.ltv, sat: dRaw.sat * w.sat, risk: dRaw.risk * w.risk,
+          omni: dRaw.omni * w.omni, on: dRaw.on * w.on, off: dRaw.off * w.off,
+          pop: dRaw.pop * w.pop, mar: dRaw.mar * w.mar
+        };
         const caps = {
-          ltv: softCapFor('ltv', levelIndex),
-          sat: softCapFor('satisfaction', levelIndex),
-          omni: softCapFor('omni', levelIndex),
-          on: softCapFor('online', levelIndex),
-          off: softCapFor('offline', levelIndex),
-          pop: softCapFor('popularity', levelIndex),
+          ltv: softCapFor('ltv', levelIndex), sat: softCapFor('satisfaction', levelIndex),
+          omni: softCapFor('omni', levelIndex), on: softCapFor('online', levelIndex),
+          off: softCapFor('offline', levelIndex), pop: softCapFor('popularity', levelIndex),
           mar: softCapFor('margin', levelIndex),
         };
-
-        // helpers escala
         const pos = (cur, v, cap) => v <= 0 ? v : applyPosWithCaps(cur, v, cap);
         const neg = (v) => v >= 0 ? v : applyNegWithDifficulty(v);
 
         let s = { ...state };
-
-        // aplicamos deltas base
         const dApplied = { ltv:0,sat:0,on:0,off:0,pop:0,mar:0,omni:0,risk:0 };
 
-        dApplied.ltv = (d.ltv>=0) ? pos(s.ltv, d.ltv, caps.ltv) : neg(d.ltv);
-        s.ltv += dApplied.ltv;
+        dApplied.ltv = (d.ltv>=0) ? pos(s.ltv, d.ltv, caps.ltv) : neg(d.ltv); s.ltv += dApplied.ltv;
+        dApplied.sat = (d.sat>=0) ? pos(s.satisfaction, d.sat, caps.sat) : neg(d.sat); s.satisfaction += dApplied.sat;
+        dApplied.on  = (d.on>=0)  ? pos(s.online, d.on, caps.on) : neg(d.on); s.online += dApplied.on;
+        dApplied.off = (d.off>=0) ? pos(s.offline, d.off, caps.off) : neg(d.off); s.offline += dApplied.off;
+        dApplied.pop = (d.pop>=0) ? pos(s.popularity, d.pop, caps.pop) : neg(d.pop); s.popularity += dApplied.pop;
+        dApplied.mar = (d.mar>=0) ? pos(s.margin, d.mar, caps.mar) : neg(d.mar); s.margin += dApplied.mar;
 
-        dApplied.sat = (d.sat>=0) ? pos(s.satisfaction, d.sat, caps.sat) : neg(d.sat);
-        s.satisfaction += dApplied.sat;
+        dApplied.risk = (d.risk>=0) ? d.risk*1.1 : d.risk*1.2; s.risk += dApplied.risk;
 
-        dApplied.on = (d.on>=0) ? pos(s.online, d.on, caps.on) : neg(d.on);
-        s.online += dApplied.on;
-
-        dApplied.off = (d.off>=0) ? pos(s.offline, d.off, caps.off) : neg(d.off);
-        s.offline += dApplied.off;
-
-        dApplied.pop = (d.pop>=0) ? pos(s.popularity, d.pop, caps.pop) : neg(d.pop);
-        s.popularity += dApplied.pop;
-
-        dApplied.mar = (d.mar>=0) ? pos(s.margin, d.mar, caps.mar) : neg(d.mar);
-        s.margin += dApplied.mar;
-
-        // Riesgo directo (más severo)
-        dApplied.risk = (d.risk>=0) ? d.risk*1.1 : d.risk*1.2;
-        s.risk += dApplied.risk;
-
-        // Omnicanalidad: suma impacto explícito + efecto balance (no gratis)
+        // Omnicanalidad = impacto explícito + balance de canales (suave) + tope por click
         const gap = Math.abs(s.online - s.offline);
         let omniDelta = 0;
-        if (d.omni !== 0) {
-          omniDelta += (d.omni>=0) ? applyPosWithCaps(s.omni, d.omni, caps.omni) : applyNegWithDifficulty(d.omni);
-        }
-        // bono/malus por balance (siempre aplica, pero suave)
-        omniDelta += (8 - gap * 0.18); // puede ser negativo si hay mucho gap
-        s.omni += omniDelta;
-        dApplied.omni = omniDelta;
+        if (d.omni !== 0) omniDelta += (d.omni>=0) ? applyPosWithCaps(s.omni, d.omni, caps.omni) : applyNegWithDifficulty(d.omni);
+        const balanceBase = (levelIndex <= 1) ? 2 : (levelIndex === 2 ? 3 : (levelIndex === 3 ? 3.5 : (levelIndex === 4 ? 4 : 5)));
+        const balanceSlope = (levelIndex <= 1) ? 0.10 : (levelIndex === 2 ? 0.12 : (levelIndex === 3 ? 0.14 : (levelIndex === 4 ? 0.16 : 0.18)));
+        omniDelta += (balanceBase - gap * balanceSlope);
+        const omniMaxStep = MAX_STEP.omni[Math.min(levelIndex, MAX_STEP.omni.length-1)];
+        if (omniDelta > omniMaxStep) omniDelta = omniMaxStep;
+        s.omni += omniDelta; dApplied.omni = omniDelta;
 
-        // ======================
-        // TRADE-OFFS AUTOMÁTICOS
-        // ======================
-        if (dApplied.sat > 0) { s.margin -= dApplied.sat * 0.25; }
-        if (dApplied.pop > 0) { s.risk += dApplied.pop * 0.35; }
+        // Trade-offs
+        if (dApplied.sat > 0) s.margin -= dApplied.sat * 0.25;
+        if (dApplied.pop > 0) s.risk += dApplied.pop * 0.35;
         if (dApplied.mar > 0) { s.satisfaction -= dApplied.mar * 0.2; s.popularity -= dApplied.mar * 0.1; }
         if (dApplied.omni > 0) { s.margin -= dApplied.omni * 0.15; s.satisfaction -= Math.max(0, dApplied.omni-2) * 0.05; }
 
-        // Riesgo dinámico si crecen pop/sat/mar más que omni/on/off
+        // Riesgo dinámico por crecimiento "no controlado"
         const growthPos = Math.max(0, dApplied.pop) + Math.max(0, dApplied.sat) + Math.max(0, dApplied.mar);
         const growthCtrl = Math.max(0, dApplied.omni) + Math.max(0, dApplied.on) + Math.max(0, dApplied.off);
-        if (growthPos - growthCtrl > 0) {
-          s.risk += (growthPos - growthCtrl) * 0.15;
-        }
+        if (growthPos - growthCtrl > 0) s.risk += (growthPos - growthCtrl) * 0.15;
 
-        // Fatiga de canal (obsesión por un canal)
-        const thisBias = biasOfImpact(d);
+        // Fatiga de canal
+        const thisBias = biasOfImpact(dRaw);
         let nextBias = lastBias, nextStreak = biasStreak;
         if (thisBias !== 'balanced') {
           if (thisBias === lastBias) nextStreak += 1; else { nextBias = thisBias; nextStreak = 1; }
-          if (nextStreak >= 2) {
-            s.omni -= DIFFICULTY.fatiguePenalty.omni;
-            s.satisfaction -= DIFFICULTY.fatiguePenalty.sat;
-            s.ltv -= DIFFICULTY.fatiguePenalty.ltv;
-            s.risk += DIFFICULTY.fatiguePenalty.risk;
-          }
+          if (nextStreak >= 2) { s.omni -= DIFFICULTY.fatiguePenalty.omni; s.satisfaction -= DIFFICULTY.fatiguePenalty.sat; s.ltv -= DIFFICULTY.fatiguePenalty.ltv; s.risk += DIFFICULTY.fatiguePenalty.risk; }
         } else { nextBias = 'balanced'; nextStreak = 0; }
 
         // Castigos por riesgo alto
         if (s.risk > 60) s.satisfaction -= (s.risk - 60) * 0.08;
         if (s.risk > 75) s.ltv -= (s.risk - 75) * 0.18;
 
-        // Bonificación de madurez en Camp 5 (si todo 75–85 de media)
+        // Bono de madurez en Etapa 6 si el core medio está entre 75–85
         if (levelIndex === 5) {
           const coreAvg = (s.ltv + s.satisfaction + s.omni + (100 - s.risk)) / 4;
-          if (coreAvg >= 75 && coreAvg <= 85) {
-            s.ltv += 3; s.satisfaction += 3; s.omni += 3; s.risk -= 3;
-          }
+          if (coreAvg >= 75 && coreAvg <= 85) { s.ltv += 3; s.satisfaction += 3; s.omni += 3; s.risk -= 3; }
         }
 
-        // Clamps (hard caps más duros hasta el 4)
+        // Hard caps
         const hardCap = levelIndex < 4 ? 95 : 100;
-        s.ltv = clamp(s.ltv, 0, hardCap);
-        s.satisfaction = clamp(s.satisfaction, 0, hardCap);
-        s.omni = clamp(s.omni, 0, hardCap);
-        s.online = clamp(s.online, 0, hardCap);
-        s.offline = clamp(s.offline, 0, hardCap);
-        s.popularity = clamp(s.popularity, 0, hardCap);
-        s.margin = clamp(s.margin, 0, hardCap);
-        s.risk = clamp(s.risk, 0, 100);
+        s.ltv = clamp(s.ltv, 0, hardCap); s.satisfaction = clamp(s.satisfaction, 0, hardCap);
+        s.omni = clamp(s.omni, 0, hardCap); s.online = clamp(s.online, 0, hardCap);
+        s.offline = clamp(s.offline, 0, hardCap); s.popularity = clamp(s.popularity, 0, hardCap);
+        s.margin = clamp(s.margin, 0, hardCap); s.risk = clamp(s.risk, 0, 100);
 
         return { state: s, bias: nextBias, streak: nextStreak };
       }
 
-      // =======================
-      // UI: ESCENARIO / EVENTOS / TABLERO / FINAL
-      // =======================
-      function ScenarioCard({ levelTitle, base, onChoose, selectedIndex }) {
+      // =================== UI: Escenario / Evento ===================
+      function ScenarioCard({ stageTitle, base, onChoose, selectedIndex }) {
         return (
           <div className="card">
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-300/90 uppercase tracking-wider">{levelTitle}</p>
+              <p className="text-sm text-gray-300/90 uppercase tracking-wider">{stageTitle}</p>
               <h3 className="text-2xl md:text-3xl font-semibold text-red-400">{base.title}</h3>
               {base.desc && <p className="text-gray-200/90">{base.desc}</p>}
               <div className="grid md:grid-cols-2 gap-3">
@@ -529,7 +424,6 @@
           </div>
         );
       }
-
       function EventModal({ event, onChoose, onClose }) {
         if (!event) return null;
         return (
@@ -556,35 +450,71 @@
         );
       }
 
+      // =============== UI: Board con "Mapa de Etapas" (SVG) ===============
+      function StageMap({ current }) {
+        // puntos predefinidos (como el boceto)
+        const points = [
+          {x:80,y:260},{x:240,y:220},{x:400,y:260},{x:560,y:210},{x:720,y:160},{x:880,y:90}
+        ];
+        const pathD = `M ${points[0].x},${points[0].y}
+          C 160,240 200,220 ${points[1].x},${points[1].y}
+          S ${points[2].x},${points[2].y} ${points[3].x},${points[3].y}
+          S ${points[4].x},${points[4].y} ${points[5].x},${points[5].y}`;
+        return (
+          <svg viewBox="0 0 980 320" className="w-full h-[260px] md:h-[320px]">
+            <path d={pathD} fill="none" stroke="#64748b" strokeWidth="6" strokeLinecap="round" opacity="0.5"/>
+            {points.map((p,i)=>(
+              <g key={i} transform={`translate(${p.x} ${p.y})`}>
+                <circle r="28" fill={i<=current ? "#ef4444" : "#475569"} />
+                <text textAnchor="middle" y="6" fontSize="18" fill="#fff" fontWeight="700">{i+1}</text>
+              </g>
+            ))}
+          </svg>
+        );
+      }
       function Board({ level, levelIndex, state, success, onOpenScenario }) {
         return (
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 card">
               <div className="p-8">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-2">🏔️ {level.title}</h2>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
+                  PAUSE &amp; PLAY: <span className="text-red-400">Rumbo a la Cima</span>
+                </h1>
 
-                <div className="grid md:grid-cols-6 gap-3 mb-6">
-                  {LEVELS.map((_, i) => (
-                    <div key={i} className="flex flex-col items-center">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${i <= levelIndex ? 'bg-red-600' : 'bg-gray-600'}`}>{i+1}</div>
-                      <p className="text-xs text-gray-300 mt-2">Camp {i}</p>
+                <div className="mt-2 text-gray-300 flex items-center gap-3">
+                  <span className="text-2xl">🏔️</span>
+                  <div>
+                    <div className="text-2xl md:text-3xl font-bold">
+                      {level.title.replace('Etapa', 'Etapa')}
                     </div>
-                  ))}
+                  </div>
                 </div>
 
-                <HUD
-                  ltv={state.ltv} omni={state.omni} satisfaction={state.satisfaction} risk={state.risk}
-                  online={state.online} offline={state.offline} popularity={state.popularity} margin={state.margin}
-                />
+                <div className="mt-4">
+                  <StageMap current={levelIndex}/>
+                </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-2">
                   <button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenario</button>
                 </div>
               </div>
             </div>
 
-            <div>
-              <SuccessPanel success={success} />
+            <div className="flex flex-col gap-6">
+              <div className="card">
+                <div className="p-6">
+                  <div className="text-5xl font-extrabold">{success}</div>
+                  <div className="text-sm text-gray-300/90 mt-1">Éxito del Casino (0–100)</div>
+                  <div className="mt-3"><ProgressBar value={success} color="#f59e0b" /></div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="card"><div className="p-4"><div className="text-sm text-gray-300">💰 LTV</div><div className="text-2xl font-bold">{rnd(state.ltv)}</div></div></div>
+                <div className="card"><div className="p-4"><div className="text-sm text-gray-300">🔄 Omnicanalidad</div><div className="text-2xl font-bold">{rnd(state.omni)}%</div></div></div>
+                <div className="card"><div className="p-4"><div className="text-sm text-gray-300">⚠️ Riesgo</div><div className="text-2xl font-bold">{rnd(state.risk)}%</div></div></div>
+                <div className="card"><div className="p-4"><div className="text-sm text-gray-300">💻 Online</div><div className="text-2xl font-bold">{rnd(state.online)}%</div></div></div>
+              </div>
             </div>
           </div>
         );
@@ -609,9 +539,7 @@
         </div>
       );
 
-      // =======================
-      // APP
-      // =======================
+      // ======================= App =======================
       function App() {
         const [screen, setScreen] = useState('board');
         const [levelIndex, setLevelIndex] = useState(0);
@@ -635,9 +563,7 @@
           if (selectedIndex !== null) return;
           setSelectedIndex(idx);
           const res = applyImpactToState(state, opt.impact || {}, levelIndex, lastBias, biasStreak);
-          setState(res.state);
-          setLastBias(res.bias);
-          setBiasStreak(res.streak);
+          setState(res.state); setLastBias(res.bias); setBiasStreak(res.streak);
         };
 
         const nextStep = () => {
@@ -648,30 +574,22 @@
 
         const afterEvent = () => {
           setEventOpen(false);
-          // Transición hacia el siguiente campamento
           const months = LEVELS[levelIndex]?.monthsAfter ?? 0;
           if (months > 0 && levelIndex < LEVELS.length - 1) {
             setTransitionMonths(months);
             setShowTransition(true);
             setTimeout(() => setShowTransition(false), 2000);
           }
-          // Siguiente nivel o final
-          const moreLevels = levelIndex + 1 < LEVELS.length;
-          if (moreLevels) {
-            setTimeout(() => {
-              setLevelIndex(levelIndex + 1);
-              setBaseIndex(0);
-              setSelectedIndex(null);
-              setScreen('board');
-            }, 2000);
+          const more = levelIndex + 1 < LEVELS.length;
+          if (more) {
+            setTimeout(() => { setLevelIndex(levelIndex + 1); setBaseIndex(0); setSelectedIndex(null); setScreen('board'); }, 2000);
           } else {
             setTimeout(() => setScreen('final'), 1200);
           }
         };
 
         const resetGame = () => {
-          setScreen('board');
-          setLevelIndex(0); setBaseIndex(0); setSelectedIndex(null);
+          setScreen('board'); setLevelIndex(0); setBaseIndex(0); setSelectedIndex(null);
           setEventOpen(false); setShowTransition(false); setTransitionMonths(0);
           setState({ ...START }); setLastBias('balanced'); setBiasStreak(0);
         };
@@ -680,9 +598,7 @@
           <div>
             <div className="flex justify-between items-center mb-6">
               <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}>
-                <h1 className="text-2xl md:text-3xl font-extrabold text-red-400 tracking-tight">
-                  EVEREST CLIENTE — Demo Jugable
-                </h1>
+                <h2 className="text-xl md:text-2xl font-semibold text-gray-300">Demo Jugable</h2>
               </motion.div>
               <div className="flex items-center gap-3">
                 <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
@@ -712,7 +628,7 @@
                   </div>
 
                   <ScenarioCard
-                    levelTitle={level.title}
+                    stageTitle={level.title}
                     base={level.bases[baseIndex]}
                     onChoose={chooseOption}
                     selectedIndex={selectedIndex}
@@ -734,7 +650,6 @@
               )}
             </AnimatePresence>
 
-            {/* Evento modal */}
             <EventModal
               event={eventOpen ? level.event : null}
               onChoose={(opt)=>{
@@ -745,7 +660,6 @@
               onClose={afterEvent}
             />
 
-            {/* Transición de tiempo */}
             {showTransition && <TransitionTime months={transitionMonths} onEnd={()=>{}} />}
           </div>
         );
