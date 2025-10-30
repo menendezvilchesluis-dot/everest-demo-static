@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pause & Play: Rumbo a la Cima</title>
     <link rel="icon" href="data:,">
-
-    <!-- Tailwind (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root { color-scheme: dark; }
@@ -23,14 +21,9 @@
       .badge { font-size:.7rem; padding:.15rem .45rem; border:1px solid #4b5563; border-radius:.45rem; background:#111827; }
     </style>
 
-    <!-- React + ReactDOM -->
     <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-
-    <!-- Framer Motion -->
     <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
-
-    <!-- Babel (JSX en navegador) -->
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
   </head>
   <body>
@@ -45,13 +38,11 @@
       const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
       const rnd = (n) => Math.round(n);
 
-      // ======================= UI básicas =======================
+      /* ================= HUD ================= */
       const ProgressBar = ({ value=0, color='#ef4444' }) => {
         const v = clamp(Math.round(value), 0, 100);
         return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
       };
-
-      // HUD centrada, compacta y alineada
       function HUD({ omni, risk, margin, satisfaction, popularity, online, sala }) {
         const items = [
           {label:'Omnicanalidad',val:rnd(omni),color:'#60a5fa'},
@@ -74,19 +65,7 @@
         );
       }
 
-      function TransitionTime({ label, onEnd }) {
-        return (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 1.0 }} onAnimationComplete={() => setTimeout(onEnd, 900)}
-          >
-            {label}
-          </motion.div>
-        );
-      }
-
-      // =============== UI: Board con "Mapa de Etapas" (SVG) ===============
+      /* ============== Mapa etapas ============== */
       function StageMap({ current }) {
         const points = [
           {x:80,y:260},{x:240,y:220},{x:400,y:260},{x:560,y:210},{x:720,y:160},{x:880,y:90}
@@ -116,23 +95,12 @@
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
                   PAUSE &amp; PLAY: <span className="text-red-400">Rumbo a la Cima</span>
                 </h1>
-
                 <div className="mt-2 text-gray-300 flex items-center gap-3">
                   <span className="text-2xl">{level.icon}</span>
-                  <div>
-                    <div className="text-2xl md:text-3xl font-bold">
-                      {level.title}
-                    </div>
-                  </div>
+                  <div><div className="text-2xl md:text-3xl font-bold">{level.title}</div></div>
                 </div>
-
-                <div className="mt-4">
-                  <StageMap current={levelIndex}/>
-                </div>
-
-                <div className="mt-2">
-                  <button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenarios</button>
-                </div>
+                <div className="mt-4"><StageMap current={levelIndex}/></div>
+                <div className="mt-2"><button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenarios</button></div>
               </div>
             </div>
 
@@ -144,15 +112,10 @@
                   <div className="mt-3"><ProgressBar value={success} color="#f59e0b" /></div>
                 </div>
               </div>
-
-              <div className="card">
-                <div className="p-4">
-                  <HUD
-                    omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
-                    popularity={state.popularity} online={state.online} sala={state.sala}
-                  />
-                </div>
-              </div>
+              <div className="card"><div className="p-4">
+                <HUD omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
+                     popularity={state.popularity} online={state.online} sala={state.sala}/>
+              </div></div>
             </div>
           </div>
         );
@@ -178,8 +141,7 @@
         </div>
       );
 
-      // =================== Contenido EXACTO (Etapas 0–5) ===================
-      // Impactos: micro (±2–6), medio (±7–10), clave (±15–25). Incluye bajadas de Omnicanalidad.
+      /* ============== CONTENIDO EXACTO (Etapas 0–5) ============== */
       const LEVELS = [
         {
           key:"e0", icon:"🏕️", title:"Etapa 0 — Captación", jump:"+1 mes",
@@ -202,14 +164,11 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"¡Necesitamos registros!",
               desc:"Quieres hacer push para potenciar registros durante un mes:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Competición de registros desde los locales con Ranking.", impact:{ omni:+15, sala:+10, margin:-5, popularity:+6 }, key:true },
-                  { text:"Campaña de Twitch con Streamer TOP.", impact:{ popularity:+18, risk:+8, margin:-8, omni:-8, online:+8 } },
-                  { text:"Sin evento (Ahorro).", impact:{ margin:+5, popularity:-4 } },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Competición de registros desde los locales con Ranking.", impact:{ omni:+15, sala:+10, margin:-5, popularity:+6 }, key:true },
+                { text:"Campaña de Twitch con Streamer TOP.", impact:{ popularity:+18, risk:+8, margin:-8, omni:-8, online:+8 } },
+                { text:"Sin evento (Ahorro).", impact:{ margin:+5, popularity:-4 } },
+              ]}]
             },
           ]
         },
@@ -235,14 +194,11 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"Fallo en la web",
               desc:"Durante la campaña de activación, Alira se cae durante 4 horas. Los usuarios no pueden completar su verificación ni acceder al bono:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Comunicar en web y publicar promoción en compensación.", impact:{ satisfaction:+10, margin:-6, risk:-4, omni:+2 } },
-                  { text:"Enviar promoción únicamente a clientes molestos que presenten quejas.", impact:{ satisfaction:+4, margin:-3, risk:-2 } },
-                  { text:"Ignorar el problema y priorizar la campaña una vez se reanude.", impact:{ satisfaction:-20, risk:+10 }, key:true },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Comunicar en web y publicar promoción en compensación.", impact:{ satisfaction:+10, margin:-6, risk:-4, omni:+2 } },
+                { text:"Enviar promoción únicamente a clientes molestos que presenten quejas.", impact:{ satisfaction:+4, margin:-3, risk:-2 } },
+                { text:"Ignorar el problema y priorizar la campaña una vez se reanude.", impact:{ satisfaction:-20, risk:+10 }, key:true },
+              ]}]
             },
           ]
         },
@@ -267,14 +223,11 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"Nuevo Lanzamiento",
               desc:"Un proveedor TOP nos elige para darnos en exclusiva su lanzamiento más esperado del año:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true },
-                  { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
-                  { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true },
+                { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
+                { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
+              ]}]
             },
           ]
         },
@@ -299,14 +252,11 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"Nueva regulación",
               desc:"La DGOJ anuncia una nueva norma que exige avisos de pausa automática y límites por defecto más bajos. El equipo debe decidir cómo implementar el cambio antes de la fecha límite:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Adelantar el cumplimiento y aplicar los límites cuanto antes para estar preparados.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
-                  { text:"Plan gradual aplicándolo únicamente a nuevos clientes y luego extenderlo al resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:-3 } },
-                  { text:"Esperar a la publicación oficial y retrasar su aplicación hasta el último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 }, key:true },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Adelantar el cumplimiento y aplicar los límites cuanto antes para estar preparados.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
+                { text:"Plan gradual aplicándolo únicamente a nuevos clientes y luego extenderlo al resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:-3 } },
+                { text:"Esperar a la publicación oficial y retrasar su aplicación hasta el último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 }, key:true },
+              ]}]
             },
           ]
         },
@@ -332,14 +282,11 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"¡Quiero mi promoción!",
               desc:"Un grupo de jugadores regulares (no VIP) se queja en redes sociales por los beneficios exclusivos del club, acusando trato desigual y falta de transparencia:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Explicación sobre la meritocracia del club y transparencia con criterios de acceso.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
-                  { text:"Abrir una sección intermedia con categorías (plata/oro) y mejoras de menor nivel.", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
-                  { text:"Mantener la exclusividad del club priorizando prestigio y diferenciación.", impact:{ popularity:-6, satisfaction:+2, margin:+2 } },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Explicación sobre la meritocracia del club y transparencia con criterios de acceso.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
+                { text:"Abrir una sección intermedia con categorías (plata/oro) y mejoras de menor nivel.", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
+                { text:"Mantener la exclusividad del club priorizando prestigio y diferenciación.", impact:{ popularity:-6, satisfaction:+2, margin:+2 } },
+              ]}]
             },
           ]
         },
@@ -364,47 +311,40 @@
             },
             { type:"event", heading:"Evento exclusivo:", title:"Siguientes pasos",
               desc:"Después de años de evolución, Pause & Play ha alcanzado la cima del sector como operador omnicanal con presencia nacional y licencia AADD. El éxito es innegable… pero también lo es la responsabilidad de liderar el futuro del entretenimiento regulado. La dirección debe decidir cuál será el rumbo de la compañía en esta nueva era:",
-              scenarios:[{
-                title:"",
-                options:[
-                  { text:"Expandir fronteras. Llevar el modelo Pause & Play a nuevos países, replicando la experiencia omnicanal a nivel internacional.", impact:{ omni:+20, risk:+15, margin:+10 }, key:true },
-                  { text:"Innovar la experiencia. Apostar por nuevas tecnologías (IA, VR, streaming) para reinventar el entretenimiento físico y digital.", impact:{ satisfaction:+15, popularity:+10, margin:-10, risk:+6, omni:+8 } },
-                  { text:"Diversificar el negocio. Abrir nuevas líneas de ocio bajo el sello Pause & Play.", impact:{ margin:+10, risk:+6, omni:+6, popularity:+6 } },
-                ]
-              }]
+              scenarios:[{ title:"", options:[
+                { text:"Expandir fronteras. Llevar el modelo Pause & Play a nuevos países, replicando la experiencia omnicanal a nivel internacional.", impact:{ omni:+20, risk:+15, margin:+10 }, key:true },
+                { text:"Innovar la experiencia. Apostar por nuevas tecnologías (IA, VR, streaming) para reinventar el entretenimiento físico y digital.", impact:{ satisfaction:+15, popularity:+10, margin:-10, risk:+6, omni:+8 } },
+                { text:"Diversificar el negocio. Abrir nuevas líneas de ocio bajo el sello Pause & Play.", impact:{ margin:+10, risk:+6, omni:+6, popularity:+6 } },
+              ]}]
             },
           ]
         },
       ];
 
-      // =================== Soft caps / rendimientos decrecientes ===================
-      // Cap por etapa (sube poco a poco para que 100% sea muy difícil)
+      /* ============ Soft caps y motor (sin LTV) ============ */
       function stageCap(levelIndex) {
-        if (levelIndex <= 1) return 90;   // etapas 0–1
-        if (levelIndex <= 3) return 94;   // etapas 2–3
-        return 97;                        // etapas 4–5
+        if (levelIndex <= 1) return 90;
+        if (levelIndex <= 3) return 94;
+        return 97;
       }
-      // Escala de crecimiento positivo según proximidad a cap
       function scalePositive(current, delta, cap) {
         if (delta <= 0) return delta;
-        const start = 70; // a partir de aquí empieza a frenar
+        const start = 70;
         let d = delta;
         if (current >= start) {
           const prox = Math.min(1, (current - start) / (cap - start));
-          const factor = 1 - 0.75 * prox; // baja hasta el 25% cuando te acercas al cap
+          const factor = 1 - 0.75 * prox; // hasta 25% al acercarse al cap
           d *= Math.max(0.25, factor);
         }
-        if (current >= cap) d *= 0.1;      // casi bloqueado sobre el cap
+        if (current >= cap) d *= 0.1;
         return d;
       }
 
-      // =================== Motor sencillo (sin LTV) ===================
       const START = { omni:40, risk:40, margin:50, satisfaction:50, popularity:40, online:30, sala:30 };
 
       function applyImpactToState(state, impact, levelIndex) {
         const s = { ...state };
         const cap = stageCap(levelIndex);
-
         const add = (k, v=0) => {
           if (!v) return;
           if (v > 0) s[k] = clamp(s[k] + scalePositive(s[k], v, cap), 0, 100);
@@ -412,10 +352,9 @@
         };
 
         add('omni', impact.omni);
-        // Riesgo: aumentos con soft cap, bajadas no capadas (para poder reducir)
         if (impact.risk) {
           if (impact.risk > 0) s.risk = clamp(s.risk + scalePositive(s.risk, impact.risk, cap), 0, 100);
-          else s.risk = clamp(s.risk + impact.risk * 1.1, 0, 100); // bajadas algo más efectivas
+          else s.risk = clamp(s.risk + impact.risk * 1.1, 0, 100);
         }
         add('margin', impact.margin);
         add('satisfaction', impact.satisfaction);
@@ -423,26 +362,34 @@
         add('online', impact.online);
         add('sala', impact.sala);
 
-        // Efectos cruzados suaves
-        if ((impact.popularity||0) > 0) s.risk = clamp(s.risk + impact.popularity*0.3, 0, 100);
-        if ((impact.satisfaction||0) > 0) s.margin = clamp(s.margin - impact.satisfaction*0.2, 0, 100);
-        if ((impact.margin||0) > 0) { s.satisfaction = clamp(s.satisfaction - impact.margin*0.15, 0, 100); s.popularity = clamp(s.popularity - impact.margin*0.1, 0, 100); }
+        /* Penalizaciones cruzadas (suavizadas) */
+        if ((impact.popularity||0) > 0) s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100);
+        if ((impact.satisfaction||0) > 0) s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100);
+        if ((impact.margin||0) > 0) {
+          s.satisfaction = clamp(s.satisfaction - impact.margin*0.05, 0, 100);
+          s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100);
+        }
 
-        // Omnicanalidad responde al desequilibrio sala/online (acotado y con soft cap si es subida)
+        /* Ajuste de omnicanalidad por equilibrio online/sala (capado) */
         const gap = Math.abs(s.online - s.sala);
-        let balanceAdj = 3 - gap * 0.10;           // entre aprox -? y +3
+        let balanceAdj = 3 - gap * 0.10;
         balanceAdj = Math.max(-3, Math.min(3, balanceAdj));
         if (balanceAdj > 0) s.omni = clamp(s.omni + scalePositive(s.omni, balanceAdj, cap), 0, 100);
         else s.omni = clamp(s.omni + balanceAdj, 0, 100);
 
-        // Evita picos por debajo de etapa final
-        s.omni = (levelIndex < 4) ? Math.min(s.omni, cap) : s.omni;
-        s.risk = (levelIndex < 4) ? Math.min(s.risk, cap) : s.risk;
+        /* No permitir 100% antes del final */
+        if (levelIndex < 4) {
+          s.omni = Math.min(s.omni, cap);
+          s.risk = Math.min(s.risk, cap);
+        }
+
+        /* Suelo de margen para que nunca quede en 0 por arrastre */
+        s.margin = Math.max(s.margin, 5);
 
         return s;
       }
 
-      // ======================= App =======================
+      /* ================== UI de escenarios/eventos ================== */
       function ScenarioCard({ blockTitle, sc, onChoose, selectedIndex }) {
         return (
           <div className="card">
@@ -459,7 +406,6 @@
                       className={`btn btn-outline text-left ${picked ? 'opt-picked' : ''}`}
                       disabled={selectedIndex !== null && !picked}
                       onClick={() => onChoose(opt, i)}
-                      title={opt.key ? 'Decisión clave' : 'Decisión'}
                     >
                       {opt.text} {picked && '✓'}
                     </button>
@@ -479,7 +425,9 @@
             <div className="w-full max-w-xl">
               <div className="card" style={{borderColor:'#f59e0b'}}>
                 <div className="p-6">
-                  <h3 className="text-xl md:text-2xl font-bold text-yellow-400"><span className="text-gray-300">{ev.heading}</span> <i>{ev.title}</i></h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-yellow-400">
+                    <span className="text-gray-300">{ev.heading}</span> <i>{ev.title}</i>
+                  </h3>
                   <p className="text-gray-200 mt-2">{ev.desc}</p>
                   <div className="grid gap-3 mt-4">
                     {ev.scenarios[0].options.map((opt, i) => (
@@ -501,26 +449,24 @@
       function App() {
         const [screen, setScreen] = useState('board');
         const [levelIndex, setLevelIndex] = useState(0);
-        const [blockIndex, setBlockIndex] = useState(0); // recorre blocks del nivel
-        const [scenarioIndex, setScenarioIndex] = useState(0); // índice dentro de scenarios
+        const [blockIndex, setBlockIndex] = useState(0);
+        const [scenarioIndex, setScenarioIndex] = useState(0);
         const [selectedIndex, setSelectedIndex] = useState(null);
         const [eventOpen, setEventOpen] = useState(false);
         const [showJump, setShowJump] = useState(false);
         const [jumpLabel, setJumpLabel] = useState("");
 
         const [state, setState] = useState({ ...START });
-        const [notes, setNotes] = useState([]); // RGIAJ, etc.
+        const [notes, setNotes] = useState([]);
 
         const level = LEVELS[levelIndex];
+        const success = useMemo(() =>
+          Math.round(
+            state.margin*0.25 + state.satisfaction*0.25 + state.omni*0.25 +
+            (100 - state.risk)*0.15 + state.popularity*0.05 + (state.online+state.sala)/2*0.05
+          ), [state]
+        );
 
-        const success = useMemo(() => {
-          // Fórmula sin LTV
-          return Math.round(
-            state.margin*0.25 + state.satisfaction*0.25 + state.omni*0.25 + (100 - state.risk)*0.15 + state.popularity*0.05 + (state.online+state.sala)/2*0.05
-          );
-        }, [state]);
-
-        // Bloque actual
         const currentBlock = level.blocks[blockIndex];
         const scenariosArr = currentBlock?.type === 'scenarios' ? currentBlock.scenarios : null;
         const currentScenario = scenariosArr ? scenariosArr[scenarioIndex] : null;
@@ -530,56 +476,31 @@
           setSelectedIndex(idx);
           const newState = applyImpactToState(state, opt.impact || {}, levelIndex);
           setState(newState);
-          if (opt.note === 'rgiaj' && !notes.includes('rgiaj')) {
-            setNotes([...notes, 'rgiaj']);
-          }
+          if (opt.note === 'rgiaj' && !notes.includes('rgiaj')) setNotes([...notes, 'rgiaj']);
         };
 
         const next = () => {
           if (currentBlock?.type === 'scenarios') {
-            // ¿hay más escenarios dentro del bloque?
             if (scenarioIndex + 1 < currentBlock.scenarios.length) {
               setScenarioIndex(scenarioIndex + 1);
               setSelectedIndex(null);
               return;
             }
-            // si no, ¿hay más bloques en el nivel?
             if (blockIndex + 1 < level.blocks.length) {
               const nextBlock = level.blocks[blockIndex + 1];
-              if (nextBlock.type === 'event') {
-                setEventOpen(true);
-                return;
-              } else {
-                setBlockIndex(blockIndex + 1);
-                setScenarioIndex(0);
-                setSelectedIndex(null);
-                return;
-              }
+              if (nextBlock.type === 'event') { setEventOpen(true); return; }
+              setBlockIndex(blockIndex + 1); setScenarioIndex(0); setSelectedIndex(null); return;
             }
           }
-          // si es evento o fin de nivel
           finishLevel();
         };
 
         const finishLevel = () => {
-          // salto temporal si corresponde
-          if (level.jump) {
-            setJumpLabel(`📅 ${level.jump}…`);
-            setShowJump(true);
-            setTimeout(() => setShowJump(false), 1500);
-          }
+          if (level.jump) { setJumpLabel(`📅 ${level.jump}…`); setShowJump(true); setTimeout(() => setShowJump(false), 1500); }
           const more = levelIndex + 1 < LEVELS.length;
           if (more) {
-            setTimeout(() => {
-              setLevelIndex(levelIndex + 1);
-              setBlockIndex(0);
-              setScenarioIndex(0);
-              setSelectedIndex(null);
-              setScreen('board');
-            }, 900);
-          } else {
-            setTimeout(() => setScreen('final'), 600);
-          }
+            setTimeout(() => { setLevelIndex(levelIndex + 1); setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null); setScreen('board'); }, 900);
+          } else { setTimeout(() => setScreen('final'), 600); }
         };
 
         const afterEventChoose = (opt) => {
@@ -609,13 +530,7 @@
 
             <AnimatePresence mode="wait">
               {screen === 'board' && (
-                <Board
-                  level={level}
-                  levelIndex={levelIndex}
-                  state={state}
-                  success={success}
-                  onOpenScenario={()=>setScreen('scenario')}
-                />
+                <Board level={level} levelIndex={levelIndex} state={state} success={success} onOpenScenario={()=>setScreen('scenario')} />
               )}
 
               {screen === 'scenario' && currentBlock?.type === 'scenarios' && currentScenario && (
@@ -627,18 +542,11 @@
                     </div>
                   </div>
 
-                  <ScenarioCard
-                    blockTitle={currentBlock.heading}
-                    sc={currentScenario}
-                    onChoose={pickOption}
-                    selectedIndex={selectedIndex}
-                  />
+                  <ScenarioCard blockTitle={currentBlock.heading} sc={currentScenario} onChoose={pickOption} selectedIndex={selectedIndex} />
 
                   <div className="mt-3">
-                    <HUD
-                      omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
-                      popularity={state.popularity} online={state.online} sala={state.sala}
-                    />
+                    <HUD omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
+                         popularity={state.popularity} online={state.online} sala={state.sala} />
                   </div>
 
                   {selectedIndex!==null && (
@@ -649,17 +557,11 @@
                 </div>
               )}
 
-              {screen === 'final' && (
-                <FinalScreen score={success} stats={state} onRestart={resetGame} />
-              )}
+              {screen === 'final' && (<FinalScreen score={success} stats={state} onRestart={resetGame} />)}
             </AnimatePresence>
 
             {eventOpen && currentBlock?.type !== 'event' && (
-              <EventModal
-                block={LEVELS[levelIndex].blocks.find(b=>b.type==='event')}
-                onChoose={afterEventChoose}
-                onClose={() => { setEventOpen(false); finishLevel(); }}
-              />
+              <EventModal block={LEVELS[levelIndex].blocks.find(b=>b.type==='event')} onChoose={afterEventChoose} onClose={()=>{ setEventOpen(false); finishLevel(); }} />
             )}
 
             {notes.includes('rgiaj') && (
@@ -668,7 +570,12 @@
               </div>
             )}
 
-            {showJump && <TransitionTime label={jumpLabel} onEnd={()=>{}} />}
+            {showJump && (
+              <motion.div className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.0 }}>
+                {jumpLabel}
+              </motion.div>
+            )}
           </div>
         );
       }
