@@ -28,7 +28,7 @@
     <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 
-    <!-- Framer Motion (fallback si no carga) -->
+    <!-- Framer Motion -->
     <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
 
     <!-- Babel (JSX en navegador) -->
@@ -38,7 +38,7 @@
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <script type="text/babel" data-presets="react">
-      // ====== Fallback Framer Motion ======
+      // ====== Framer Motion (fallback seguro) ======
       const FM = window['framer-motion'] || {};
       const motion = FM.motion || new Proxy({}, { get: () => (props) => React.createElement('div', props) });
       const AnimatePresence = FM.AnimatePresence || (({children}) => children);
@@ -48,31 +48,32 @@
       const rnd = (n) => Math.round(n);
 
       // =======================
-      // CONFIG MODO DIFÍCIL
+      // DIFICULTAD / ECONOMÍA
       // =======================
       const DIFFICULTY = {
-        posScale: 0.8,
-        negScale: 1.1,
+        posScale: 0.6,       // subir cuesta más
+        negScale: 1.25,      // castigo mayor
         softCaps: {
-          ltv:           [78, 86, 92, 96, 100],
-          satisfaction:  [85, 90, 94, 97, 100],
-          omni:          [82, 88, 93, 97, 100],
-          online:        [88, 92, 96, 98, 100],
-          offline:       [88, 92, 96, 98, 100],
-          risk:          [100,100,100,100,100],
-          popularity:    [90, 94, 97, 99, 100],
-          margin:        [80, 88, 92, 96, 100],
+          ltv:           [70, 78, 85, 92, 96, 100],
+          satisfaction:  [80, 86, 90, 94, 97, 100],
+          omni:          [75, 82, 88, 93, 97, 100],
+          online:        [82, 88, 92, 95, 98, 100],
+          offline:       [82, 88, 92, 95, 98, 100],
+          popularity:    [85, 90, 94, 97, 99, 100],
+          margin:        [78, 85, 90, 95, 98, 100],
         },
-        fatiguePenalty: { omni: 4, sat: 3, ltv: 2, risk: 4 },
-        diminishingStart: 80
+        fatiguePenalty: { omni: 6, sat: 4, ltv: 3, risk: 6 },
+        diminishingStart: 70
       };
 
+      const START = { ltv:55, omni:35, satisfaction:72, risk:20, online:45, offline:55, popularity:60, margin:55 };
+
       const softCapFor = (metric, levelIndex) => {
-        const caps = DIFFICULTY.softCaps[metric] || [100,100,100,100,100];
+        const caps = DIFFICULTY.softCaps[metric] || [100,100,100,100,100,100];
         return caps[Math.min(levelIndex, caps.length-1)];
       };
 
-      function applyPosWithCaps(current, delta, levelCap) {
+      const applyPosWithCaps = (current, delta, cap) => {
         if (delta <= 0) return delta;
         let d = delta * DIFFICULTY.posScale;
         const start = DIFFICULTY.diminishingStart;
@@ -80,19 +81,27 @@
           const factor = clamp(1 - ((current - start) / (100 - start)), 0.15, 1);
           d *= factor;
         }
-        if (current >= levelCap) {
-          d *= 0.2;
-        } else if (current + d > levelCap) {
-          const extra = (current + d) - levelCap;
-          d -= extra * 0.5;
+        if (current >= cap) {
+          d *= 0.15;
+        } else if (current + d > cap) {
+          const extra = (current + d) - cap;
+          d -= extra * 0.6;
         }
         return d;
-      }
+      };
 
-      function applyNegWithDifficulty(delta) {
+      const applyNegWithDifficulty = (delta) => {
         if (delta >= 0) return delta;
         return delta * DIFFICULTY.negScale;
-      }
+      };
+
+      const biasOfImpact = (impact) => {
+        const on = impact.online ?? impact.online_activity ?? 0;
+        const off = impact.offline ?? impact.offline_activity ?? 0;
+        if (on - off > 6) return 'online';
+        if (off - on > 6) return 'offline';
+        return 'balanced';
+      };
 
       // =======================
       // UI BÁSICA
@@ -151,15 +160,8 @@
         );
       }
 
-      // Transición de tiempo entre campamentos
       function TransitionTime({ months, onEnd }) {
-        const labels = {
-          1: "📅 1 mes después...",
-          3: "📅 3 meses después...",
-          6: "📅 6 meses después...",
-          9: "📅 9 meses después...",
-          12: "📅 1 año después..."
-        };
+        const labels = { 1:"📅 1 mes después...", 3:"📅 3 meses después...", 6:"📅 6 meses después...", 9:"📅 9 meses después...", 12:"📅 1 año después..." };
         return (
           <motion.div
             className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
@@ -175,12 +177,12 @@
       }
 
       // =======================
-      // CONTENIDO (TUS TEXTOS)
+      // CONTENIDO (tus textos)
+      // Nota: monthsAfter = tiempo de transición hacia el SIGUIENTE campamento
       // =======================
       const LEVELS = [
-        // Camp 0
         {
-          key:"captacion", monthsToNext:0, title:"🏕️ Campamento 0 — Captación",
+          key:"captacion", monthsAfter:1, title:"🏕️ Campamento 0 — Captación",
           bases:[
             {
               title:"Estrategias de captación",
@@ -211,10 +213,8 @@
             ]
           }
         },
-
-        // Camp 1
         {
-          key:"activacion", monthsToNext:1, title:"⚡ Campamento 1 — Activación",
+          key:"activacion", monthsAfter:3, title:"⚡ Campamento 1 — Activación",
           bases:[
             {
               title:"Clientes registrados sin verificación",
@@ -246,10 +246,8 @@
             ]
           }
         },
-
-        // Camp 2
         {
-          key:"retencion", monthsToNext:3, title:"🔁 Campamento 2 — Retención",
+          key:"retencion", monthsAfter:6, title:"🔁 Campamento 2 — Retención",
           bases:[
             {
               title:"Caída de actividad tras el primer depósito",
@@ -280,10 +278,8 @@
             ]
           }
         },
-
-        // Camp 3
         {
-          key:"riesgo", monthsToNext:6, title:"⚖️ Campamento 3 — Riesgo",
+          key:"riesgo", monthsAfter:9, title:"⚖️ Campamento 3 — Riesgo",
           bases:[
             {
               title:"Jugador intensivo Omnicanal",
@@ -314,10 +310,8 @@
             ]
           }
         },
-
-        // Camp 4
         {
-          key:"fidelizacion", monthsToNext:9, title:"🏆 Campamento 4 — Fidelización",
+          key:"fidelizacion", monthsAfter:12, title:"🏆 Campamento 4 — Fidelización",
           bases:[
             {
               title:"Club VIP Omnicanal",
@@ -349,10 +343,8 @@
             ]
           }
         },
-
-        // Camp 5
         {
-          key:"consolidacion", monthsToNext:12, title:"🏔️ Campamento 5 — Consolidación de Marca",
+          key:"consolidacion", monthsAfter:0, title:"🏔️ Campamento 5 — Consolidación de Marca",
           bases:[
             {
               title:"Pause&PlayBet.es",
@@ -386,63 +378,130 @@
       ];
 
       // =======================
-      // MOTOR DE IMPACTO
+      // MOTOR DE IMPACTOS (equilibrio y coherencia)
       // =======================
-      const START = { ltv:55, omni:35, satisfaction:72, risk:20, online:45, offline:55, popularity:60, margin:55 };
-
-      function applyImpactToState(state, impact, levelIndex) {
-        // Soportes de nombres alternativos
-        const i = {
-          LTV: impact.LTV ?? 0,
-          SAT: impact.satisfaction ?? 0,
-          RISK: impact.risk ?? 0,
-          OMNI: impact.omni ?? impact.omnichannel_index ?? 0,
-          ON: impact.online ?? impact.online_activity ?? 0,
-          OFF: impact.offline ?? impact.offline_activity ?? 0,
-          POP: impact.popularity ?? 0,
-          MAR: impact.margin ?? 0,
+      function applyImpactToState(state, impact, levelIndex, lastBias, biasStreak) {
+        // normaliza nombres
+        const d = {
+          ltv: impact.LTV ?? 0,
+          sat: impact.satisfaction ?? 0,
+          risk: impact.risk ?? 0,
+          omni: impact.omni ?? impact.omnichannel_index ?? 0,
+          on: impact.online ?? impact.online_activity ?? 0,
+          off: impact.offline ?? impact.offline_activity ?? 0,
+          pop: impact.popularity ?? 0,
+          mar: impact.margin ?? 0
         };
 
+        // caps
         const caps = {
           ltv: softCapFor('ltv', levelIndex),
-          satisfaction: softCapFor('satisfaction', levelIndex),
+          sat: softCapFor('satisfaction', levelIndex),
           omni: softCapFor('omni', levelIndex),
-          online: softCapFor('online', levelIndex),
-          offline: softCapFor('offline', levelIndex),
-          popularity: softCapFor('popularity', levelIndex),
-          margin: softCapFor('margin', levelIndex),
+          on: softCapFor('online', levelIndex),
+          off: softCapFor('offline', levelIndex),
+          pop: softCapFor('popularity', levelIndex),
+          mar: softCapFor('margin', levelIndex),
         };
+
+        // helpers escala
+        const pos = (cur, v, cap) => v <= 0 ? v : applyPosWithCaps(cur, v, cap);
+        const neg = (v) => v >= 0 ? v : applyNegWithDifficulty(v);
 
         let s = { ...state };
 
-        const pos = (cur, d, cap) => applyPosWithCaps(cur, d, cap);
-        const neg = (d) => applyNegWithDifficulty(d);
+        // aplicamos deltas base
+        const dApplied = { ltv:0,sat:0,on:0,off:0,pop:0,mar:0,omni:0,risk:0 };
 
-        s.ltv          += i.LTV>=0 ? pos(s.ltv, i.LTV, caps.ltv)                 : neg(i.LTV);
-        s.satisfaction += i.SAT>=0 ? pos(s.satisfaction, i.SAT, caps.satisfaction) : neg(i.SAT);
-        s.omni         += i.OMNI>=0? pos(s.omni, i.OMNI, caps.omni)               : neg(i.OMNI);
-        s.online       += i.ON>=0  ? pos(s.online, i.ON, caps.online)             : neg(i.ON);
-        s.offline      += i.OFF>=0 ? pos(s.offline, i.OFF, caps.offline)          : neg(i.OFF);
-        s.popularity   += i.POP>=0 ? pos(s.popularity, i.POP, caps.popularity)    : neg(i.POP);
-        s.margin       += i.MAR>=0 ? pos(s.margin, i.MAR, caps.margin)            : neg(i.MAR);
-        s.risk         += i.RISK>=0? i.RISK : i.RISK*1.1;
+        dApplied.ltv = (d.ltv>=0) ? pos(s.ltv, d.ltv, caps.ltv) : neg(d.ltv);
+        s.ltv += dApplied.ltv;
 
-        // equilibrio de canales favorece OMNI
+        dApplied.sat = (d.sat>=0) ? pos(s.satisfaction, d.sat, caps.sat) : neg(d.sat);
+        s.satisfaction += dApplied.sat;
+
+        dApplied.on = (d.on>=0) ? pos(s.online, d.on, caps.on) : neg(d.on);
+        s.online += dApplied.on;
+
+        dApplied.off = (d.off>=0) ? pos(s.offline, d.off, caps.off) : neg(d.off);
+        s.offline += dApplied.off;
+
+        dApplied.pop = (d.pop>=0) ? pos(s.popularity, d.pop, caps.pop) : neg(d.pop);
+        s.popularity += dApplied.pop;
+
+        dApplied.mar = (d.mar>=0) ? pos(s.margin, d.mar, caps.mar) : neg(d.mar);
+        s.margin += dApplied.mar;
+
+        // Riesgo directo (más severo)
+        dApplied.risk = (d.risk>=0) ? d.risk*1.1 : d.risk*1.2;
+        s.risk += dApplied.risk;
+
+        // Omnicanalidad: suma impacto explícito + efecto balance (no gratis)
         const gap = Math.abs(s.online - s.offline);
-        s.omni += (18 - gap * 0.20);
-
-        // clamps
-        const hardCap = levelIndex < 3 ? 98 : 100;
-        for (const k of ['ltv','satisfaction','omni','online','offline','popularity','margin']) {
-          s[k] = clamp(s[k], 0, hardCap);
+        let omniDelta = 0;
+        if (d.omni !== 0) {
+          omniDelta += (d.omni>=0) ? applyPosWithCaps(s.omni, d.omni, caps.omni) : applyNegWithDifficulty(d.omni);
         }
+        // bono/malus por balance (siempre aplica, pero suave)
+        omniDelta += (8 - gap * 0.18); // puede ser negativo si hay mucho gap
+        s.omni += omniDelta;
+        dApplied.omni = omniDelta;
+
+        // ======================
+        // TRADE-OFFS AUTOMÁTICOS
+        // ======================
+        if (dApplied.sat > 0) { s.margin -= dApplied.sat * 0.25; }
+        if (dApplied.pop > 0) { s.risk += dApplied.pop * 0.35; }
+        if (dApplied.mar > 0) { s.satisfaction -= dApplied.mar * 0.2; s.popularity -= dApplied.mar * 0.1; }
+        if (dApplied.omni > 0) { s.margin -= dApplied.omni * 0.15; s.satisfaction -= Math.max(0, dApplied.omni-2) * 0.05; }
+
+        // Riesgo dinámico si crecen pop/sat/mar más que omni/on/off
+        const growthPos = Math.max(0, dApplied.pop) + Math.max(0, dApplied.sat) + Math.max(0, dApplied.mar);
+        const growthCtrl = Math.max(0, dApplied.omni) + Math.max(0, dApplied.on) + Math.max(0, dApplied.off);
+        if (growthPos - growthCtrl > 0) {
+          s.risk += (growthPos - growthCtrl) * 0.15;
+        }
+
+        // Fatiga de canal (obsesión por un canal)
+        const thisBias = biasOfImpact(d);
+        let nextBias = lastBias, nextStreak = biasStreak;
+        if (thisBias !== 'balanced') {
+          if (thisBias === lastBias) nextStreak += 1; else { nextBias = thisBias; nextStreak = 1; }
+          if (nextStreak >= 2) {
+            s.omni -= DIFFICULTY.fatiguePenalty.omni;
+            s.satisfaction -= DIFFICULTY.fatiguePenalty.sat;
+            s.ltv -= DIFFICULTY.fatiguePenalty.ltv;
+            s.risk += DIFFICULTY.fatiguePenalty.risk;
+          }
+        } else { nextBias = 'balanced'; nextStreak = 0; }
+
+        // Castigos por riesgo alto
+        if (s.risk > 60) s.satisfaction -= (s.risk - 60) * 0.08;
+        if (s.risk > 75) s.ltv -= (s.risk - 75) * 0.18;
+
+        // Bonificación de madurez en Camp 5 (si todo 75–85 de media)
+        if (levelIndex === 5) {
+          const coreAvg = (s.ltv + s.satisfaction + s.omni + (100 - s.risk)) / 4;
+          if (coreAvg >= 75 && coreAvg <= 85) {
+            s.ltv += 3; s.satisfaction += 3; s.omni += 3; s.risk -= 3;
+          }
+        }
+
+        // Clamps (hard caps más duros hasta el 4)
+        const hardCap = levelIndex < 4 ? 95 : 100;
+        s.ltv = clamp(s.ltv, 0, hardCap);
+        s.satisfaction = clamp(s.satisfaction, 0, hardCap);
+        s.omni = clamp(s.omni, 0, hardCap);
+        s.online = clamp(s.online, 0, hardCap);
+        s.offline = clamp(s.offline, 0, hardCap);
+        s.popularity = clamp(s.popularity, 0, hardCap);
+        s.margin = clamp(s.margin, 0, hardCap);
         s.risk = clamp(s.risk, 0, 100);
 
-        return s;
+        return { state: s, bias: nextBias, streak: nextStreak };
       }
 
       // =======================
-      // UI: ESCENARIO / EVENTOS
+      // UI: ESCENARIO / EVENTOS / TABLERO / FINAL
       // =======================
       function ScenarioCard({ levelTitle, base, onChoose, selectedIndex }) {
         return (
@@ -497,6 +556,40 @@
         );
       }
 
+      function Board({ level, levelIndex, state, success, onOpenScenario }) {
+        return (
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 card">
+              <div className="p-8">
+                <h2 className="text-2xl md:text-3xl font-bold mb-6 flex items-center gap-2">🏔️ {level.title}</h2>
+
+                <div className="grid md:grid-cols-6 gap-3 mb-6">
+                  {LEVELS.map((_, i) => (
+                    <div key={i} className="flex flex-col items-center">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shadow-lg ${i <= levelIndex ? 'bg-red-600' : 'bg-gray-600'}`}>{i+1}</div>
+                      <p className="text-xs text-gray-300 mt-2">Camp {i}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <HUD
+                  ltv={state.ltv} omni={state.omni} satisfaction={state.satisfaction} risk={state.risk}
+                  online={state.online} offline={state.offline} popularity={state.popularity} margin={state.margin}
+                />
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenario</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <SuccessPanel success={success} />
+            </div>
+          </div>
+        );
+      }
+
       const FinalScreen = ({ score, stats, onRestart }) => (
         <div className="card">
           <div className="text-center space-y-4 py-12 px-6">
@@ -520,7 +613,7 @@
       // APP
       // =======================
       function App() {
-        const [screen, setScreen] = useState('lobby');
+        const [screen, setScreen] = useState('board');
         const [levelIndex, setLevelIndex] = useState(0);
         const [baseIndex, setBaseIndex] = useState(0);
         const [selectedIndex, setSelectedIndex] = useState(null);
@@ -529,6 +622,8 @@
         const [transitionMonths, setTransitionMonths] = useState(0);
 
         const [state, setState] = useState({ ...START });
+        const [lastBias, setLastBias] = useState('balanced');
+        const [biasStreak, setBiasStreak] = useState(0);
 
         const success = useMemo(() => {
           return Math.round( state.ltv*0.35 + state.satisfaction*0.30 + state.omni*0.20 + (100-state.risk)*0.15 );
@@ -536,41 +631,38 @@
 
         const level = LEVELS[levelIndex];
 
-        const chooseOption = (opt) => {
+        const chooseOption = (opt, idx) => {
           if (selectedIndex !== null) return;
-          setSelectedIndex(0); // marca cualquiera como elegida (solo un pick)
-          setState(s => applyImpactToState(s, opt.impact || {}, levelIndex));
+          setSelectedIndex(idx);
+          const res = applyImpactToState(state, opt.impact || {}, levelIndex, lastBias, biasStreak);
+          setState(res.state);
+          setLastBias(res.bias);
+          setBiasStreak(res.streak);
         };
 
         const nextStep = () => {
-          // pasar a siguiente base o abrir evento
           const moreBases = baseIndex + 1 < level.bases.length;
-          if (moreBases) {
-            setBaseIndex(baseIndex + 1);
-            setSelectedIndex(null);
-            return;
-          }
-          // abrir evento si no está abierto
+          if (moreBases) { setBaseIndex(baseIndex + 1); setSelectedIndex(null); return; }
           if (!eventOpen) { setEventOpen(true); return; }
         };
 
         const afterEvent = () => {
           setEventOpen(false);
-          // transición temporal (al siguiente campamento)
-          const next = LEVELS[levelIndex+1];
-          if (next && next.monthsToNext > 0) {
-            setTransitionMonths(next.monthsToNext);
+          // Transición hacia el siguiente campamento
+          const months = LEVELS[levelIndex]?.monthsAfter ?? 0;
+          if (months > 0 && levelIndex < LEVELS.length - 1) {
+            setTransitionMonths(months);
             setShowTransition(true);
             setTimeout(() => setShowTransition(false), 2000);
           }
-          // pasar de nivel o finalizar
+          // Siguiente nivel o final
           const moreLevels = levelIndex + 1 < LEVELS.length;
           if (moreLevels) {
             setTimeout(() => {
               setLevelIndex(levelIndex + 1);
               setBaseIndex(0);
               setSelectedIndex(null);
-              setScreen('scenario');
+              setScreen('board');
             }, 2000);
           } else {
             setTimeout(() => setScreen('final'), 1200);
@@ -578,10 +670,10 @@
         };
 
         const resetGame = () => {
-          setScreen('lobby');
+          setScreen('board');
           setLevelIndex(0); setBaseIndex(0); setSelectedIndex(null);
           setEventOpen(false); setShowTransition(false); setTransitionMonths(0);
-          setState({ ...START });
+          setState({ ...START }); setLastBias('balanced'); setBiasStreak(0);
         };
 
         return (
@@ -594,23 +686,20 @@
               </motion.div>
               <div className="flex items-center gap-3">
                 <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
-                {screen!=='scenario' && <button className="btn btn-primary text-sm" onClick={()=>setScreen('scenario')}>Empezar</button>}
+                <button className={`btn btn-primary text-sm ${screen==='board'?'opacity-60':''}`} onClick={()=>setScreen('board')}>Tablero</button>
+                <button className={`btn btn-primary text-sm ${screen==='scenario'?'opacity-60':''}`} onClick={()=>setScreen('scenario')}>Escenario</button>
               </div>
             </div>
 
             <AnimatePresence mode="wait">
-              {screen === 'lobby' && (
-                <div className="card shadow-2xl">
-                  <div className="text-center space-y-4 py-12 px-6">
-                    <h2 className="text-4xl font-extrabold text-red-400">La Ascensión Omnicanal</h2>
-                    <p className="text-gray-200/90 max-w-2xl mx-auto">
-                      Gestiona decisiones omnicanal y alcanza la cima con equilibrio entre margen, riesgo, satisfacción y omnicanalidad.
-                    </p>
-                    <div className="flex justify-center gap-4 mt-4">
-                      <button className="btn btn-primary" onClick={() => setScreen('scenario')}>▶️ Iniciar Expedición</button>
-                    </div>
-                  </div>
-                </div>
+              {screen === 'board' && (
+                <Board
+                  level={level}
+                  levelIndex={levelIndex}
+                  state={state}
+                  success={success}
+                  onOpenScenario={()=>setScreen('scenario')}
+                />
               )}
 
               {screen === 'scenario' && (
@@ -625,7 +714,7 @@
                   <ScenarioCard
                     levelTitle={level.title}
                     base={level.bases[baseIndex]}
-                    onChoose={(opt)=>chooseOption(opt)}
+                    onChoose={chooseOption}
                     selectedIndex={selectedIndex}
                   />
                   <HUD
@@ -645,15 +734,18 @@
               )}
             </AnimatePresence>
 
+            {/* Evento modal */}
             <EventModal
               event={eventOpen ? level.event : null}
               onChoose={(opt)=>{
-                setState(s => applyImpactToState(s, opt.impact || {}, levelIndex));
+                const res = applyImpactToState(state, opt.impact || {}, levelIndex, lastBias, biasStreak);
+                setState(res.state); setLastBias(res.bias); setBiasStreak(res.streak);
                 afterEvent();
               }}
               onClose={afterEvent}
             />
 
+            {/* Transición de tiempo */}
             {showTransition && <TransitionTime months={transitionMonths} onEnd={()=>{}} />}
           </div>
         );
