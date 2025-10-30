@@ -50,34 +50,30 @@
         const v = clamp(Math.round(value), 0, 100);
         return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
       };
+
+      // HUD centrada, compacta y alineada
       function HUD({ omni, risk, margin, satisfaction, popularity, online, sala }) {
         const items = [
-          {label:'🔄 Omnicanalidad',val:rnd(omni),isPct:true,color:'#60a5fa'},
-          {label:'⚠️ Riesgo',val:rnd(risk),isPct:true,color:'#ef4444'},
-          {label:'📈 Margen',val:rnd(margin),isPct:true,color:'#10b981'},
-          {label:'❤️ Satisfacción',val:rnd(satisfaction),isPct:true,color:'#f97316'},
-          {label:'📣 Popularidad',val:rnd(popularity),isPct:true,color:'#eab308'},
-          {label:'💻 Online',val:rnd(online),isPct:true,color:'#34d399'},
-          {label:'🏪 Sala',val:rnd(sala),isPct:true,color:'#a78bfa'},
+          {label:'Omnicanalidad',val:rnd(omni),color:'#60a5fa'},
+          {label:'Riesgo',val:rnd(risk),color:'#ef4444'},
+          {label:'Margen',val:rnd(margin),color:'#10b981'},
+          {label:'Satisfacción',val:rnd(satisfaction),color:'#f97316'},
+          {label:'Popularidad',val:rnd(popularity),color:'#eab308'},
+          {label:'Online',val:rnd(online),color:'#34d399'},
+          {label:'Sala',val:rnd(sala),color:'#a78bfa'},
         ];
         return (
-          <div className="mt-6 grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
             {items.map((m) => (
-              <div key={m.label} className="card">
-                <div className="p-4">
-                  <p className="text-xs text-gray-300/80">{m.label}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <ProgressBar value={m.val} color={m.color} />
-                    <span className="text-sm text-gray-200 w-12 text-right">
-                      {m.isPct?`${clamp(m.val,0,100)}%`:clamp(m.val,0,100)}
-                    </span>
-                  </div>
-                </div>
+              <div key={m.label} className="bg-gray-800/50 rounded-xl p-3 text-center">
+                <div className="text-[11px] text-gray-400 tracking-wide">{m.label}</div>
+                <div className="text-xl font-bold" style={{color:m.color}}>{clamp(m.val,0,100)}%</div>
               </div>
             ))}
           </div>
         );
       }
+
       function TransitionTime({ label, onEnd }) {
         return (
           <motion.div
@@ -111,6 +107,7 @@
           </svg>
         );
       }
+
       function Board({ level, levelIndex, state, success, onOpenScenario }) {
         return (
           <div className="grid lg:grid-cols-3 gap-6">
@@ -380,15 +377,46 @@
         },
       ];
 
+      // =================== Soft caps / rendimientos decrecientes ===================
+      // Cap por etapa (sube poco a poco para que 100% sea muy difícil)
+      function stageCap(levelIndex) {
+        if (levelIndex <= 1) return 90;   // etapas 0–1
+        if (levelIndex <= 3) return 94;   // etapas 2–3
+        return 97;                        // etapas 4–5
+      }
+      // Escala de crecimiento positivo según proximidad a cap
+      function scalePositive(current, delta, cap) {
+        if (delta <= 0) return delta;
+        const start = 70; // a partir de aquí empieza a frenar
+        let d = delta;
+        if (current >= start) {
+          const prox = Math.min(1, (current - start) / (cap - start));
+          const factor = 1 - 0.75 * prox; // baja hasta el 25% cuando te acercas al cap
+          d *= Math.max(0.25, factor);
+        }
+        if (current >= cap) d *= 0.1;      // casi bloqueado sobre el cap
+        return d;
+      }
+
       // =================== Motor sencillo (sin LTV) ===================
       const START = { omni:40, risk:40, margin:50, satisfaction:50, popularity:40, online:30, sala:30 };
 
-      function applyImpactToState(state, impact) {
+      function applyImpactToState(state, impact, levelIndex) {
         const s = { ...state };
-        const add = (k, v=0) => { s[k] = clamp((s[k] ?? 0) + (v||0), 0, 100); };
+        const cap = stageCap(levelIndex);
+
+        const add = (k, v=0) => {
+          if (!v) return;
+          if (v > 0) s[k] = clamp(s[k] + scalePositive(s[k], v, cap), 0, 100);
+          else s[k] = clamp(s[k] + v, 0, 100);
+        };
 
         add('omni', impact.omni);
-        add('risk', impact.risk);
+        // Riesgo: aumentos con soft cap, bajadas no capadas (para poder reducir)
+        if (impact.risk) {
+          if (impact.risk > 0) s.risk = clamp(s.risk + scalePositive(s.risk, impact.risk, cap), 0, 100);
+          else s.risk = clamp(s.risk + impact.risk * 1.1, 0, 100); // bajadas algo más efectivas
+        }
         add('margin', impact.margin);
         add('satisfaction', impact.satisfaction);
         add('popularity', impact.popularity);
@@ -400,9 +428,16 @@
         if ((impact.satisfaction||0) > 0) s.margin = clamp(s.margin - impact.satisfaction*0.2, 0, 100);
         if ((impact.margin||0) > 0) { s.satisfaction = clamp(s.satisfaction - impact.margin*0.15, 0, 100); s.popularity = clamp(s.popularity - impact.margin*0.1, 0, 100); }
 
-        // Omnicanalidad también responde al desequilibrio sala/online
-        const gap = Math.abs(s.online - s.sala); // cuanto más desbalance, peor para omni
-        s.omni = clamp(s.omni + (4 - gap*0.12), 0, 100); // pequeño ajuste automático
+        // Omnicanalidad responde al desequilibrio sala/online (acotado y con soft cap si es subida)
+        const gap = Math.abs(s.online - s.sala);
+        let balanceAdj = 3 - gap * 0.10;           // entre aprox -? y +3
+        balanceAdj = Math.max(-3, Math.min(3, balanceAdj));
+        if (balanceAdj > 0) s.omni = clamp(s.omni + scalePositive(s.omni, balanceAdj, cap), 0, 100);
+        else s.omni = clamp(s.omni + balanceAdj, 0, 100);
+
+        // Evita picos por debajo de etapa final
+        s.omni = (levelIndex < 4) ? Math.min(s.omni, cap) : s.omni;
+        s.risk = (levelIndex < 4) ? Math.min(s.risk, cap) : s.risk;
 
         return s;
       }
@@ -426,7 +461,7 @@
                       onClick={() => onChoose(opt, i)}
                       title={opt.key ? 'Decisión clave' : 'Decisión'}
                     >
-                      {opt.text} {opt.key && '🔥'} {picked && '✓'}
+                      {opt.text} {picked && '✓'}
                     </button>
                   );
                 })}
@@ -449,7 +484,7 @@
                   <div className="grid gap-3 mt-4">
                     {ev.scenarios[0].options.map((opt, i) => (
                       <button key={i} className="btn btn-secondary text-left" style={{background:'#f59e0b',color:'#000'}} onClick={() => onChoose(opt)}>
-                        {opt.text} {opt.key && '🔥'}
+                        {opt.text}
                       </button>
                     ))}
                   </div>
@@ -493,7 +528,7 @@
         const pickOption = (opt, idx) => {
           if (selectedIndex !== null) return;
           setSelectedIndex(idx);
-          const newState = applyImpactToState(state, opt.impact || {});
+          const newState = applyImpactToState(state, opt.impact || {}, levelIndex);
           setState(newState);
           if (opt.note === 'rgiaj' && !notes.includes('rgiaj')) {
             setNotes([...notes, 'rgiaj']);
@@ -548,7 +583,7 @@
         };
 
         const afterEventChoose = (opt) => {
-          const newState = applyImpactToState(state, opt.impact || {});
+          const newState = applyImpactToState(state, opt.impact || {}, levelIndex);
           setState(newState);
           setEventOpen(false);
           finishLevel();
