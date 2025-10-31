@@ -38,10 +38,15 @@
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <script type="text/babel" data-presets="react">
-      // ===== Framer Motion (fallback seguro para evitar crashes) =====
+      // ===== Fallbacks seguros para Framer Motion =====
       const FM = window['framer-motion'] || {};
-      const motion = FM.motion || (({ children, ...p }) => React.createElement('div', p, children));
-      const AnimatePresence = FM.AnimatePresence || (({ children }) => children);
+      const hasFM = !!(FM.motion && FM.motion.div);
+      const MotionDiv = (props) => hasFM
+        ? React.createElement(FM.motion.div, props)
+        : React.createElement('div', props);
+      const AnimatePresence = hasFM && FM.AnimatePresence
+        ? FM.AnimatePresence
+        : ({ children }) => children;
 
       const { useState, useMemo, useEffect } = React;
       const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
@@ -122,16 +127,17 @@
                 <div className="mt-4"><StageMap current={levelIndex}/></div>
                 <div className="mt-2"><button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenarios</button></div>
               </div>
+
               <AnimatePresence>
                 {toast && (
-                  <motion.div
+                  <MotionDiv
                     key="toast"
                     initial={{opacity:0, y:-10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}}
                     transition={{duration:.25}}
                     className="absolute top-3 left-3 right-3 mx-3 bg-emerald-500/15 border border-emerald-400 text-emerald-300 rounded-xl p-3 text-sm"
                   >
                     {toast}
-                  </motion.div>
+                  </MotionDiv>
                 )}
               </AnimatePresence>
             </div>
@@ -526,7 +532,9 @@
 
         const currentBlock = level.blocks[blockIndex];
         const scenariosArr = currentBlock?.type === 'scenarios' ? currentBlock.scenarios : null;
-        const currentScenario = scenariosArr ? scenariosArr[scenarioIndex] : null;
+        theCurrent = scenariosArr ? scenariosArr[scenarioIndex] : null;
+
+        const currentScenario = theCurrent;
 
         // Impacto + registro de diferidos
         const applyOption = (opt) => {
@@ -564,7 +572,6 @@
           const now = []; const later = [];
           pending.forEach(e => (e.trigger === targetIndex ? now.push(e) : later.push(e)));
           if (now.length) {
-            // aplica impactos diferidos acumulados
             let merged = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
             let msg = now.map(e => e.msg).join(" ");
             let s = state;
@@ -611,9 +618,9 @@
         return (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}>
+              <MotionDiv initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}}>
                 <h2 className="text-xl md:text-2xl font-semibold text-gray-300">Demo Jugable</h2>
-              </motion.div>
+              </MotionDiv>
               <div className="flex items-center gap-3">
                 <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
                 <button className={`btn btn-primary text-sm ${screen==='board'?'opacity-60':''}`} onClick={()=>setScreen('board')}>Tablero</button>
@@ -683,10 +690,10 @@
             )}
 
             {showJump && (
-              <motion.div className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.0 }}>
+              <MotionDiv className="fixed inset-0 flex items-center justify-center bg-black/80 text-3xl md:text-4xl font-bold text-red-400 z-50"
+                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.0 }}>
                 {jumpLabel}
-              </motion.div>
+              </MotionDiv>
             )}
           </div>
         );
