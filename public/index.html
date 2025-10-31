@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pause & Play: Rumbo a la Cima</title>
     <link rel="icon" href="data:,">
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root { color-scheme: dark; }
@@ -25,17 +26,23 @@
       @keyframes fadein { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
     </style>
 
+    <!-- React + ReactDOM -->
     <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Framer Motion -->
     <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
+    <!-- Babel para JSX en navegador -->
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
   </head>
   <body>
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <script type="text/babel" data-presets="react">
+      // ===== Framer Motion (fallback seguro para evitar crashes) =====
       const FM = window['framer-motion'] || {};
-      const {motion, AnimatePresence} = FM;
+      const motion = FM.motion || (({ children, ...p }) => React.createElement('div', p, children));
+      const AnimatePresence = FM.AnimatePresence || (({ children }) => children);
+
       const { useState, useMemo, useEffect } = React;
       const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
       const rnd = (n) => Math.round(n);
@@ -100,7 +107,7 @@
         );
       }
 
-      function Board({ level, levelIndex, state, success, onOpenScenario, toast }) {
+      function Board({ level, levelIndex, state, success, onOpenScenario, toast, deltas }) {
         return (
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 card relative">
@@ -139,7 +146,12 @@
               </div>
 
               <div className="card">
-                <div className="p-4" id="hud-slot"></div>
+                <div className="p-4">
+                  <HUD
+                    omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
+                    popularity={state.popularity} online={state.online} sala={state.sala} deltas={deltas}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -166,7 +178,7 @@
         </div>
       );
 
-      /* ============== CONTENIDO (igual que versión previa) ============== */
+      /* ============== CONTENIDO (etapas + eventos) ============== */
       const LEVELS = [
         {
           key:"e0", icon:"🏕️", title:"Etapa 0 — Captación", jump:"+1 mes",
@@ -241,17 +253,17 @@
                 { title:"Baja participación de los clientes en promociones semanales.", desc:"El calendario de promociones online no tiene buena acogida en jugadores regulares. El ROI de las campañas está cayendo y se evalúa cómo reactivar el interés:",
                   options:[
                     { text:"Segmentar las promociones por valor para hacerlas más atractivas.", impact:{ satisfaction:+8, margin:-4, risk:-2, omni:+4 } },
-                    { text:"Duplicar las promociones durante un tiempo para incentivar su uso.", impact:{ popularity:+10, satisfaction:+6, margin:-10, risk:+6 } },
-                    { text:"Crear nuevos formatos (desafíos semanales, minijuegos propios, ...).", impact:{ popularity:+8, satisfaction:+8, online:+6, margin:-6 } },
+                    { text:"Duplicar las promociones por un tiempo para incentivar su uso.", impact:{ popularity:+10, satisfaction:+6, margin:-10, risk:+6 } },
+                    { text:"Crear nuevos formatos (desafíos, minijuegos propios, ...).", impact:{ popularity:+8, satisfaction:+8, online:+6, margin:-6 } },
                   ]},
               ]
             },
             { type:"event", heading:"Evento exclusivo:", title:"Nuevo Lanzamiento",
               desc:"Un proveedor TOP nos elige para darnos en exclusiva su lanzamiento más esperado del año:",
               scenarios:[{ title:"", options:[
-                { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true, _defer:{after:1,msg:"El lanzamiento deja cola larga: +6% margen.", impact:{margin:+6}} },
-                { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
-                { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
+                { text:"Lanzar campaña multicanal + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true, _defer:{after:1,msg:"El lanzamiento deja cola larga: +6% margen.", impact:{margin:+6}} },
+                { text:"Lanzamiento anticipado 2 días para VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
+                { text:"FreeSpins exclusivos para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
               ]}]
             },
           ]
@@ -269,18 +281,18 @@
                   ]},
                 { title:"Solicitud de exclusión voluntaria.", desc:"Cliente con alta actividad nos pide tomarse un descanso:",
                   options:[
-                    { text:"Bloqueo de cuenta inmediato y pedirle que solicite autoexclusión por el tiempo que considere.", impact:{ risk:-15, satisfaction:-4 } },
-                    { text:"Contactar con él para analizar qué riesgos manifiesta.", impact:{ risk:-10, satisfaction:+4 }, note:"rgiaj" },
-                    { text:"Intento de disuasión sugiriendo una bajada de límites y tratar de retrasar el trámite.", impact:{ risk:+15, satisfaction:-15, omni:-5 }, key:true },
+                    { text:"Bloqueo de cuenta inmediato y pedirle que solicite autoexclusión.", impact:{ risk:-15, satisfaction:-4 } },
+                    { text:"Contactar para analizar riesgos (nota RGIAJ).", impact:{ risk:-10, satisfaction:+4 }, note:"rgiaj" },
+                    { text:"Intento de disuasión bajando límites y retrasando el trámite.", impact:{ risk:+15, satisfaction:-15, omni:-5 }, key:true },
                   ]},
               ]
             },
             { type:"event", heading:"Evento exclusivo:", title:"Nueva regulación",
-              desc:"La DGOJ anuncia una nueva norma que exige avisos de pausa automática y límites por defecto más bajos. El equipo debe decidir cómo implementar el cambio antes de la fecha límite:",
+              desc:"DGOJ exige avisos de pausa automática y límites por defecto más bajos:",
               scenarios:[{ title:"", options:[
-                { text:"Adelantar el cumplimiento y aplicar los límites cuanto antes para estar preparados.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
-                { text:"Plan gradual aplicándolo únicamente a nuevos clientes y luego extenderlo al resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:-3 } },
-                { text:"Esperar a la publicación oficial y retrasar su aplicación hasta el último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 }, key:true },
+                { text:"Adelantar el cumplimiento.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
+                { text:"Plan gradual: primero nuevos, luego resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:-3 } },
+                { text:"Esperar al último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 }, key:true },
               ]}]
             },
           ]
@@ -290,27 +302,27 @@
           blocks:[
             { type:"scenarios", heading:"Escenarios:",
               scenarios:[
-                { title:"Club VIP Omnicanal.", desc:"Tras meses de crecimiento digital, se plantea integrar los programas de fidelización de salas físicas y online bajo una misma marca: Club VIP Omnicanal. El objetivo: unificar beneficios y crear una experiencia continua para los jugadores más valiosos:",
+                { title:"Club VIP Omnicanal.", desc:"Unificar beneficios para experiencia continua de alto valor:",
                   options:[
-                    { text:"Modelo conjunto. Un solo club con puntos acumulables en ambos canales y beneficios cruzados.", impact:{ omni:+20, satisfaction:+10, margin:-10 }, key:true },
-                    { text:"Modelo espejo. Beneficios más fuertes en online para los clientes de sala y beneficios más fuertes en sala para clientes online.", impact:{ omni:+10, satisfaction:+6, margin:-6 } },
-                    { text:"Modelo paralelo. Club VIP conjunto pero manteniendo las preferencias de cada cliente.", impact:{ omni:+8, satisfaction:+8, margin:-4 } },
+                    { text:"Modelo conjunto (puntos y perks cruzados).", impact:{ omni:+20, satisfaction:+10, margin:-10 }, key:true },
+                    { text:"Modelo espejo (fortalezas cruzadas por canal).", impact:{ omni:+10, satisfaction:+6, margin:-6 } },
+                    { text:"Modelo paralelo (preferencias por cliente).", impact:{ omni:+8, satisfaction:+8, margin:-4 } },
                   ]},
-                { title:"Diseño de beneficios y recompensas.", desc:"El club necesita una propuesta de valor clara para retener y motivar sin generar dependencia:",
+                { title:"Beneficios y recompensas.", desc:"Retener y motivar sin dependencia:",
                   options:[
-                    { text:"Experiencias exclusivas como viajes, eventos, regalos.", impact:{ satisfaction:+10, popularity:+8, margin:-8 } },
-                    { text:"Recompensas web. Mejoras en promociones como cashback, misiones VIP, atención personalizada,...", impact:{ satisfaction:+8, popularity:+6, margin:-6, online:+6 } },
-                    { text:"Reconocimientos simbólicos. Trofeos digitales, distintivos visuales para sus cuentas, comunicación preferente,...", impact:{ satisfaction:+6, popularity:+4, margin:-2 } },
-                    { text:"Bonificación agresiva. Promociones continuas y altos porcentajes de Cashbacks.", impact:{ margin:-20, popularity:+15, risk:+10, omni:-5 }, key:true },
+                    { text:"Experiencias exclusivas (viajes, eventos, regalos).", impact:{ satisfaction:+10, popularity:+8, margin:-8 } },
+                    { text:"Recompensas web (cashback, misiones VIP, atención).", impact:{ satisfaction:+8, popularity:+6, margin:-6, online:+6 } },
+                    { text:"Reconocimientos simbólicos (trofeos, distintivos).", impact:{ satisfaction:+6, popularity:+4, margin:-2 } },
+                    { text:"Bonificación agresiva (cashbacks altos continuos).", impact:{ margin:-20, popularity:+15, risk:+10, omni:-5 }, key:true },
                   ]},
               ]
             },
             { type:"event", heading:"Evento exclusivo:", title:"¡Quiero mi promoción!",
-              desc:"Un grupo de jugadores regulares (no VIP) se queja en redes sociales por los beneficios exclusivos del club, acusando trato desigual y falta de transparencia:",
+              desc:"No VIPs se quejan en redes por trato desigual:",
               scenarios:[{ title:"", options:[
-                { text:"Explicación sobre la meritocracia del club y transparencia con criterios de acceso.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
-                { text:"Abrir una sección intermedia con categorías (plata/oro) y mejoras de menor nivel.", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
-                { text:"Mantener la exclusividad del club priorizando prestigio y diferenciación.", impact:{ popularity:-6, satisfaction:+2, margin:+2 } },
+                { text:"Transparencia y meritocracia.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
+                { text:"Crear niveles intermedios (plata/oro).", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
+                { text:"Mantener exclusividad (prestigio).", impact:{ popularity:-6, satisfaction:+2, margin:+2 } },
               ]}]
             },
           ]
@@ -320,33 +332,33 @@
           blocks:[
             { type:"scenarios", heading:"Escenarios:",
               scenarios:[
-                { title:"Pause&PlayBet.es", desc:"La empresa recibe la licencia de juego AADD para operar apuestas deportivas en España. El hito representa un avance clave en la consolidación de la marca como operador regulado y omnicanal. El reto ahora es decidir cómo enfocar el lanzamiento para maximizar reputación, confianza y crecimiento sostenible:",
+                { title:"Pause&PlayBet.es", desc:"Licencia AADD para apuestas deportivas:",
                   options:[
-                    { text:"Lanzar una nueva marca específica para apuestas deportivas, con identidad y público propio.", impact:{ popularity:+8, risk:+6, margin:+4, omni:-6 } },
-                    { text:"Integrar las apuestas deportivas dentro del casino, manteniendo una marca única y coherente.", impact:{ omni:+15, risk:+10, margin:+10 }, key:true },
-                    { text:"Crear una submarca vinculada (ej. pauseandplaybet.es), con identidad propia pero bajo el paraguas corporativo.", impact:{ omni:+8, popularity:+6, risk:+6, margin:+6 } },
+                    { text:"Nueva marca específica de apuestas.", impact:{ popularity:+8, risk:+6, margin:+4, omni:-6 } },
+                    { text:"Integrar apuestas dentro del casino (marca única).", impact:{ omni:+15, risk:+10, margin:+10 }, key:true },
+                    { text:"Submarca vinculada (pauseandplaybet.es).", impact:{ omni:+8, popularity:+6, risk:+6, margin:+6 } },
                   ]},
-                { title:"Experiencia Total Omnicanal.", desc:"Pause & Play quiere consolidar su modelo omnicanal conectando completamente la experiencia física y digital. La dirección estudia incorporar terminales de apuestas deportivas en los locales, integradas con las cuentas online:",
+                { title:"Experiencia Total Omnicanal.", desc:"Terminales presenciales integradas con cuentas online:",
                   options:[
-                    { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 }, _defer:{after:1,msg:"Las terminales empiezan a rentabilizarse: +6% margen, +4% sala.", impact:{margin:+6, sala:+4}} },
-                    { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 }, _defer:{after:2,msg:"El piloto madura: +4% margen, +2% sala.", impact:{margin:+4, sala:+2}} },
-                    { text:"Priorizar comunidades con mayor madurez digital y permisos favorables para optimizar recursos.", impact:{ omni:+8, sala:+10, risk:+3, margin:-6 } },
+                    { text:"Instalar en todos los locales y comunicar salto tech.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 }, _defer:{after:1,msg:"Las terminales empiezan a rentabilizarse: +6% margen, +4% sala.", impact:{margin:+6, sala:+4}} },
+                    { text:"Piloto en centros estratégicos y escalar por resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 }, _defer:{after:2,msg:"El piloto madura: +4% margen, +2% sala.", impact:{margin:+4, sala:+2}} },
+                    { text:"Priorizar comunidades con mayor madurez digital.", impact:{ omni:+8, sala:+10, risk:+3, margin:-6 } },
                   ]},
               ]
             },
             { type:"event", heading:"Evento exclusivo:", title:"Siguientes pasos",
-              desc:"Después de años de evolución, Pause & Play ha alcanzado la cima del sector como operador omnicanal con presencia nacional y licencia AADD. El éxito es innegable… pero también lo es la responsabilidad de liderar el futuro del entretenimiento regulado. La dirección debe decidir cuál será el rumbo de la compañía en esta nueva era:",
+              desc:"Decidir el rumbo tras alcanzar la cima nacional:",
               scenarios:[{ title:"", options:[
-                { text:"Expandir fronteras. Llevar el modelo Pause & Play a nuevos países, replicando la experiencia omnicanal a nivel internacional.", impact:{ omni:+20, risk:+15, margin:+10 }, key:true },
-                { text:"Innovar la experiencia. Apostar por nuevas tecnologías (IA, VR, streaming) para reinventar el entretenimiento físico y digital.", impact:{ satisfaction:+15, popularity:+10, margin:-10, risk:+6, omni:+8 } },
-                { text:"Diversificar el negocio. Abrir nuevas líneas de ocio bajo el sello Pause & Play.", impact:{ margin:+10, risk:+6, omni:+6, popularity:+6 } },
+                { text:"Expandir a otros países.", impact:{ omni:+20, risk:+15, margin:+10 }, key:true },
+                { text:"Innovar con IA/VR/streaming.", impact:{ satisfaction:+15, popularity:+10, margin:-10, risk:+6, omni:+8 } },
+                { text:"Diversificar nuevas líneas de ocio.", impact:{ margin:+10, risk:+6, omni:+6, popularity:+6 } },
               ]}]
             },
           ]
         },
       ];
 
-      /* ==== Soft caps / motor y recuperación diferida ==== */
+      /* ==== Soft caps, motor y recuperación diferida ==== */
       function stageCap(levelIndex) {
         if (levelIndex <= 1) return 90;
         if (levelIndex <= 3) return 94;
@@ -358,7 +370,7 @@
         let d = delta;
         if (current >= start) {
           const prox = Math.min(1, (current - start) / (cap - start));
-          const factor = 1 - 0.75 * prox; // hasta 25%
+          const factor = 1 - 0.75 * prox; // baja hasta 25% cerca del cap
           d *= Math.max(0.25, factor);
         }
         if (current >= cap) d *= 0.1;
@@ -372,19 +384,19 @@
         const deltas = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
 
         const add = (k, v=0, useCap=true) => {
-          if (!v) return;
+          if (!v && v!==0) return;
           const before = s[k];
           if (v > 0 && useCap) s[k] = clamp(s[k] + scalePositive(s[k], v, cap), 0, 100);
           else s[k] = clamp(s[k] + v, 0, 100);
-          deltas[k] = s[k] - before;
+          deltas[k] += (s[k] - before);
         };
 
         add('omni', impact.omni);
-        if (impact.risk) {
+        if (impact.risk || impact.risk===0) {
           const before = s.risk;
           if (impact.risk > 0) s.risk = clamp(s.risk + scalePositive(s.risk, impact.risk, cap), 0, 100);
           else s.risk = clamp(s.risk + impact.risk * 1.1, 0, 100);
-          deltas.risk = s.risk - before;
+          deltas.risk += s.risk - before;
         }
         add('margin', impact.margin);
         add('satisfaction', impact.satisfaction);
@@ -392,7 +404,7 @@
         add('online', impact.online);
         add('sala', impact.sala);
 
-        // Efectos cruzados (suaves)
+        // Efectos cruzados suavizados
         if ((impact.popularity||0) > 0) { const b=s.risk; s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100); deltas.risk += s.risk - b; }
         if ((impact.satisfaction||0) > 0) { const b=s.margin; s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100); deltas.margin += s.margin - b; }
         if ((impact.margin||0) > 0) {
@@ -400,7 +412,7 @@
           b=s.popularity; s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100); deltas.popularity += s.popularity - b;
         }
 
-        // Ajuste omni por equilibrio online/sala (capado)
+        // Omnicanalidad por equilibrio online/sala (capado)
         const gap = Math.abs(s.online - s.sala);
         let balanceAdj = Math.max(-3, Math.min(3, 3 - gap * 0.10));
         if (balanceAdj !== 0) {
@@ -416,13 +428,13 @@
           s.risk = Math.min(s.risk, cap);
         }
 
-        // Suelo de margen
+        // Suelo de margen (evita 0)
         if (s.margin < 10) { deltas.margin += (10 - s.margin); s.margin = 10; }
 
         return {state:s, deltas};
       }
 
-      /* ============== UI Escenarios / Eventos ============== */
+      /* ================== UI Escenarios / Eventos ================== */
       function ScenarioCard({ blockTitle, sc, onChoose, selectedIndex }) {
         return (
           <div className="card">
@@ -504,16 +516,7 @@
           ), [state]
         );
 
-        // Render HUD (portaled manual para simplificar)
-        useEffect(() => {
-          const slot = document.getElementById('hud-slot');
-          if (slot) ReactDOM.render(
-            <HUD {...state} deltas={deltas} />,
-            slot
-          );
-        }, [state, deltas]);
-
-        // Limpia deltas tras mostrar animación
+        // Limpia deltas tras mostrar animación ~1.5s
         useEffect(() => {
           if (Object.values(deltas).some(v=>v!==0)) {
             const t = setTimeout(() => setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0}), 1500);
@@ -525,10 +528,10 @@
         const scenariosArr = currentBlock?.type === 'scenarios' ? currentBlock.scenarios : null;
         const currentScenario = scenariosArr ? scenariosArr[scenarioIndex] : null;
 
-        // Aplica impacto + registra dif. Si hay _defer, programarlo.
+        // Impacto + registro de diferidos
         const applyOption = (opt) => {
-          const {state:ns, deltas:dd} = applyImpactToState(state, opt.impact || {}, levelIndex);
-          setState(ns); setDeltas(dd);
+          const res = applyImpactToState(state, opt.impact || {}, levelIndex);
+          setState(res.state); setDeltas(res.deltas);
           if (opt._defer) {
             setPending(p => [...p, { trigger: levelIndex + (opt._defer.after||1), impact: opt._defer.impact||{}, msg: opt._defer.msg||"Resultados positivos de la acción previa." }]);
           }
@@ -561,10 +564,16 @@
           const now = []; const later = [];
           pending.forEach(e => (e.trigger === targetIndex ? now.push(e) : later.push(e)));
           if (now.length) {
-            // Aplica impactos acumulados
+            // aplica impactos diferidos acumulados
             let merged = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
             let msg = now.map(e => e.msg).join(" ");
-            now.forEach(e => { const {state:ns, deltas:dd} = applyImpactToState(state, e.impact, targetIndex); Object.keys(merged).forEach(k => merged[k]+=dd[k]||0); setState(ns); });
+            let s = state;
+            now.forEach(e => {
+              const res = applyImpactToState(s, e.impact, targetIndex);
+              s = res.state;
+              Object.keys(merged).forEach(k => merged[k]+=res.deltas[k]||0);
+            });
+            setState(s);
             setDeltas(merged);
             setToast(msg);
             setTimeout(()=>setToast(""), 2500);
@@ -580,7 +589,7 @@
             setTimeout(() => {
               setLevelIndex(nextIndex);
               setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null); setScreen('board');
-              processDeferredFor(nextIndex); // aplica recuperaciones diferidas al entrar
+              processDeferredFor(nextIndex); // aplica recuperaciones diferidas
             }, 900);
           } else {
             setTimeout(() => setScreen('final'), 600);
@@ -621,6 +630,7 @@
                   success={success}
                   onOpenScenario={()=>setScreen('scenario')}
                   toast={toast}
+                  deltas={deltas}
                 />
               )}
 
@@ -641,7 +651,10 @@
                   />
 
                   <div className="mt-3">
-                    <HUD {...state} deltas={deltas} />
+                    <HUD
+                      omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
+                      popularity={state.popularity} online={state.online} sala={state.sala} deltas={deltas}
+                    />
                   </div>
 
                   {selectedIndex!==null && (
