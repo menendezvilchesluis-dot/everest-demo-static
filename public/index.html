@@ -19,6 +19,8 @@
       .btn-outline:hover { border-color: #ef4444; }
       .btn:disabled { opacity:.5; cursor:not-allowed; }
       .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
+
+      /* Deltas ▲ / ▼ */
       .delta-badge { font-size:.70rem; padding:.12rem .4rem; border-radius:.45rem; display:inline-flex; gap:.3rem; align-items:center; }
       .delta-up   { color:#22c55e; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.35); }
       .delta-down { color:#ef4444; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); }
@@ -38,7 +40,7 @@
     <div class="p-6 md:p-10"><div id="root"></div></div>
 
     <script type="text/babel" data-presets="react">
-      // ===== Fallbacks seguros para Framer Motion =====
+      // ===== Fallbacks seguros para Framer Motion (evita errores #130) =====
       const FM = window['framer-motion'] || {};
       const hasFM = !!(FM.motion && FM.motion.div);
       const MotionDiv = (props) => hasFM
@@ -52,7 +54,7 @@
       const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
       const rnd = (n) => Math.round(n);
 
-      /* ========= HUD con animación y deltas ========= */
+      /* ========= HUD con deltas persistentes ========= */
       const ProgressBar = ({ value=0, color='#ef4444' }) => {
         const v = clamp(Math.round(value), 0, 100);
         return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
@@ -103,7 +105,7 @@
           <svg viewBox="0 0 980 320" className="w-full h-[260px] md:h-[320px]">
             <path d={pathD} fill="none" stroke="#64748b" strokeWidth="6" strokeLinecap="round" opacity="0.5"/>
             {points.map((p,i)=>(
-              <g key={i} transform={`translate(${p.x} ${p.y})`}>
+              <g key={i} transform={`translate(${p.x} ${p.y})`}> 
                 <circle r="28" fill={i<=current ? "#ef4444" : "#475569"} />
                 <text textAnchor="middle" y="6" fontSize="18" fill="#fff" fontWeight="700">{i}</text>
               </g>
@@ -428,7 +430,7 @@
           deltas.omni += s.omni - b;
         }
 
-        // No permitir 100% antes del final
+        // No permitir 100% antes del final (cap suave por etapas)
         if (levelIndex < 4) {
           s.omni = Math.min(s.omni, cap);
           s.risk = Math.min(s.risk, cap);
@@ -522,19 +524,12 @@
           ), [state]
         );
 
-        // Limpia deltas tras mostrar animación ~1.5s
-        useEffect(() => {
-          if (Object.values(deltas).some(v=>v!==0)) {
-            const t = setTimeout(() => setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0}), 1500);
-            return () => clearTimeout(t);
-          }
-        }, [deltas]);
+        // NOTA: ya no limpiamos deltas automáticamente; permanecen visibles
+        useEffect(() => {}, [deltas]);
 
         const currentBlock = level.blocks[blockIndex];
         const scenariosArr = currentBlock?.type === 'scenarios' ? currentBlock.scenarios : null;
-        theCurrent = scenariosArr ? scenariosArr[scenarioIndex] : null;
-
-        const currentScenario = theCurrent;
+        const currentScenario = scenariosArr ? scenariosArr[scenarioIndex] : null;
 
         // Impacto + registro de diferidos
         const applyOption = (opt) => {
@@ -553,6 +548,9 @@
         };
 
         const next = () => {
+          // Limpia deltas al pasar al siguiente escenario/bloque/etapa
+          setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
+
           if (currentBlock?.type === 'scenarios') {
             if (scenarioIndex + 1 < currentBlock.scenarios.length) {
               setScenarioIndex(scenarioIndex + 1);
@@ -589,6 +587,9 @@
         };
 
         const finishLevel = () => {
+          // Limpia deltas al cambiar de etapa
+          setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
+
           if (level.jump) { setJumpLabel(`📅 ${level.jump}…`); setShowJump(true); setTimeout(() => setShowJump(false), 1200); }
           const more = levelIndex + 1 < LEVELS.length;
           if (more) {
