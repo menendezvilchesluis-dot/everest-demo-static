@@ -18,7 +18,11 @@
       .btn-outline:hover { border-color: #ef4444; }
       .btn:disabled { opacity:.5; cursor:not-allowed; }
       .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
-      .badge { font-size:.7rem; padding:.15rem .45rem; border:1px solid #4b5563; border-radius:.45rem; background:#111827; }
+      .delta-badge { font-size:.70rem; padding:.12rem .4rem; border-radius:.45rem; display:inline-flex; gap:.3rem; align-items:center; }
+      .delta-up   { color:#22c55e; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.35); }
+      .delta-down { color:#ef4444; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); }
+      .fade-in { animation: fadein .25s ease-out; }
+      @keyframes fadein { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -31,36 +35,45 @@
 
     <script type="text/babel" data-presets="react">
       const FM = window['framer-motion'] || {};
-      const motion = FM.motion || new Proxy({}, { get: () => (props) => React.createElement('div', props) });
-      const AnimatePresence = FM.AnimatePresence || (({children}) => children);
-
-      const { useState, useMemo } = React;
+      const {motion, AnimatePresence} = FM;
+      const { useState, useMemo, useEffect } = React;
       const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
       const rnd = (n) => Math.round(n);
 
-      /* ================= HUD ================= */
+      /* ========= HUD con animación y deltas ========= */
       const ProgressBar = ({ value=0, color='#ef4444' }) => {
         const v = clamp(Math.round(value), 0, 100);
         return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
       };
-      function HUD({ omni, risk, margin, satisfaction, popularity, online, sala }) {
+      function Metric({label, val, color, delta}) {
+        const showDelta = delta && Math.abs(delta) >= 1;
+        const up = delta>0, down = delta<0;
+        return (
+          <div className="bg-gray-800/50 rounded-xl p-3 text-center">
+            <div className="text-[11px] text-gray-400 tracking-wide">{label}</div>
+            <div className="text-xl font-bold" style={{color}}>{clamp(val,0,100)}%</div>
+            {showDelta && (
+              <div className={`delta-badge mt-1 inline-flex fade-in ${up?'delta-up':'delta-down'}`}>
+                <span>{up?'▲':'▼'}</span>
+                <span>{Math.abs(rnd(delta))}%</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+      function HUD({ omni, risk, margin, satisfaction, popularity, online, sala, deltas }) {
         const items = [
-          {label:'Omnicanalidad',val:rnd(omni),color:'#60a5fa'},
-          {label:'Riesgo',val:rnd(risk),color:'#ef4444'},
-          {label:'Margen',val:rnd(margin),color:'#10b981'},
-          {label:'Satisfacción',val:rnd(satisfaction),color:'#f97316'},
-          {label:'Popularidad',val:rnd(popularity),color:'#eab308'},
-          {label:'Online',val:rnd(online),color:'#34d399'},
-          {label:'Sala',val:rnd(sala),color:'#a78bfa'},
+          {label:'Omnicanalidad',val:rnd(omni),color:'#60a5fa',k:'omni'},
+          {label:'Riesgo',val:rnd(risk),color:'#ef4444',k:'risk'},
+          {label:'Margen',val:rnd(margin),color:'#10b981',k:'margin'},
+          {label:'Satisfacción',val:rnd(satisfaction),color:'#f97316',k:'satisfaction'},
+          {label:'Popularidad',val:rnd(popularity),color:'#eab308',k:'popularity'},
+          {label:'Online',val:rnd(online),color:'#34d399',k:'online'},
+          {label:'Sala',val:rnd(sala),color:'#a78bfa',k:'sala'},
         ];
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
-            {items.map((m) => (
-              <div key={m.label} className="bg-gray-800/50 rounded-xl p-3 text-center">
-                <div className="text-[11px] text-gray-400 tracking-wide">{m.label}</div>
-                <div className="text-xl font-bold" style={{color:m.color}}>{clamp(m.val,0,100)}%</div>
-              </div>
-            ))}
+            {items.map((m) => <Metric key={m.k} label={m.label} val={m.val} color={m.color} delta={deltas[m.k]||0} />)}
           </div>
         );
       }
@@ -87,10 +100,10 @@
         );
       }
 
-      function Board({ level, levelIndex, state, success, onOpenScenario }) {
+      function Board({ level, levelIndex, state, success, onOpenScenario, toast }) {
         return (
           <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 card">
+            <div className="lg:col-span-2 card relative">
               <div className="p-8">
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
                   PAUSE &amp; PLAY: <span className="text-red-400">Rumbo a la Cima</span>
@@ -102,6 +115,18 @@
                 <div className="mt-4"><StageMap current={levelIndex}/></div>
                 <div className="mt-2"><button className="btn btn-primary" onClick={onOpenScenario}>Abrir escenarios</button></div>
               </div>
+              <AnimatePresence>
+                {toast && (
+                  <motion.div
+                    key="toast"
+                    initial={{opacity:0, y:-10}} animate={{opacity:1, y:0}} exit={{opacity:0, y:-10}}
+                    transition={{duration:.25}}
+                    className="absolute top-3 left-3 right-3 mx-3 bg-emerald-500/15 border border-emerald-400 text-emerald-300 rounded-xl p-3 text-sm"
+                  >
+                    {toast}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -112,10 +137,10 @@
                   <div className="mt-3"><ProgressBar value={success} color="#f59e0b" /></div>
                 </div>
               </div>
-              <div className="card"><div className="p-4">
-                <HUD omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
-                     popularity={state.popularity} online={state.online} sala={state.sala}/>
-              </div></div>
+
+              <div className="card">
+                <div className="p-4" id="hud-slot"></div>
+              </div>
             </div>
           </div>
         );
@@ -141,7 +166,7 @@
         </div>
       );
 
-      /* ============== CONTENIDO EXACTO (Etapas 0–5) ============== */
+      /* ============== CONTENIDO (igual que versión previa) ============== */
       const LEVELS = [
         {
           key:"e0", icon:"🏕️", title:"Etapa 0 — Captación", jump:"+1 mes",
@@ -210,8 +235,8 @@
                 { title:"Caída de actividad tras el primer depósito.", desc:"Detectas una bajada del rendimiento tras una gran campaña de activación:",
                   options:[
                     { text:"Campaña para invitar a los clientes a una fiesta de Casino Online en los locales Pause&Play.", impact:{ sala:+10, omni:+8, popularity:+6, margin:-8, satisfaction:+8 } },
-                    { text:"Rediseño de la web para darle otro enfoque.", impact:{ satisfaction:+8, online:+6, margin:-6 } },
-                    { text:"Lanzamiento de la APP CasinoPause&Play (requiere inversión alta pero mejora experiencia a largo plazo).", impact:{ satisfaction:+20, online:+15, omni:+10, margin:-10 }, key:true },
+                    { text:"Rediseño de la web para darle otro enfoque.", impact:{ satisfaction:+8, online:+6, margin:-6 }, _defer:{after:1,msg:"El rediseño empieza a convertir mejor: +4% margen, +2% satisfacción.", impact:{margin:+4, satisfaction:+2}} },
+                    { text:"Lanzamiento de la APP CasinoPause&Play (requiere inversión alta pero mejora experiencia a largo plazo).", impact:{ satisfaction:+20, online:+15, omni:+10, margin:-10 }, key:true, _defer:{after:2,msg:"La APP tracciona: +12% margen, +6% online, +4% satisfacción.", impact:{margin:+12, online:+6, satisfaction:+4}} },
                   ]},
                 { title:"Baja participación de los clientes en promociones semanales.", desc:"El calendario de promociones online no tiene buena acogida en jugadores regulares. El ROI de las campañas está cayendo y se evalúa cómo reactivar el interés:",
                   options:[
@@ -224,7 +249,7 @@
             { type:"event", heading:"Evento exclusivo:", title:"Nuevo Lanzamiento",
               desc:"Un proveedor TOP nos elige para darnos en exclusiva su lanzamiento más esperado del año:",
               scenarios:[{ title:"", options:[
-                { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true },
+                { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, key:true, _defer:{after:1,msg:"El lanzamiento deja cola larga: +6% margen.", impact:{margin:+6}} },
                 { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
                 { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
               ]}]
@@ -303,8 +328,8 @@
                   ]},
                 { title:"Experiencia Total Omnicanal.", desc:"Pause & Play quiere consolidar su modelo omnicanal conectando completamente la experiencia física y digital. La dirección estudia incorporar terminales de apuestas deportivas en los locales, integradas con las cuentas online:",
                   options:[
-                    { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 } },
-                    { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 } },
+                    { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 }, _defer:{after:1,msg:"Las terminales empiezan a rentabilizarse: +6% margen, +4% sala.", impact:{margin:+6, sala:+4}} },
+                    { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 }, _defer:{after:2,msg:"El piloto madura: +4% margen, +2% sala.", impact:{margin:+4, sala:+2}} },
                     { text:"Priorizar comunidades con mayor madurez digital y permisos favorables para optimizar recursos.", impact:{ omni:+8, sala:+10, risk:+3, margin:-6 } },
                   ]},
               ]
@@ -321,7 +346,7 @@
         },
       ];
 
-      /* ============ Soft caps y motor (sin LTV) ============ */
+      /* ==== Soft caps / motor y recuperación diferida ==== */
       function stageCap(levelIndex) {
         if (levelIndex <= 1) return 90;
         if (levelIndex <= 3) return 94;
@@ -333,28 +358,33 @@
         let d = delta;
         if (current >= start) {
           const prox = Math.min(1, (current - start) / (cap - start));
-          const factor = 1 - 0.75 * prox; // hasta 25% al acercarse al cap
+          const factor = 1 - 0.75 * prox; // hasta 25%
           d *= Math.max(0.25, factor);
         }
         if (current >= cap) d *= 0.1;
         return d;
       }
-
       const START = { omni:40, risk:40, margin:50, satisfaction:50, popularity:40, online:30, sala:30 };
 
       function applyImpactToState(state, impact, levelIndex) {
         const s = { ...state };
         const cap = stageCap(levelIndex);
-        const add = (k, v=0) => {
+        const deltas = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
+
+        const add = (k, v=0, useCap=true) => {
           if (!v) return;
-          if (v > 0) s[k] = clamp(s[k] + scalePositive(s[k], v, cap), 0, 100);
+          const before = s[k];
+          if (v > 0 && useCap) s[k] = clamp(s[k] + scalePositive(s[k], v, cap), 0, 100);
           else s[k] = clamp(s[k] + v, 0, 100);
+          deltas[k] = s[k] - before;
         };
 
         add('omni', impact.omni);
         if (impact.risk) {
+          const before = s.risk;
           if (impact.risk > 0) s.risk = clamp(s.risk + scalePositive(s.risk, impact.risk, cap), 0, 100);
           else s.risk = clamp(s.risk + impact.risk * 1.1, 0, 100);
+          deltas.risk = s.risk - before;
         }
         add('margin', impact.margin);
         add('satisfaction', impact.satisfaction);
@@ -362,34 +392,37 @@
         add('online', impact.online);
         add('sala', impact.sala);
 
-        /* Penalizaciones cruzadas (suavizadas) */
-        if ((impact.popularity||0) > 0) s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100);
-        if ((impact.satisfaction||0) > 0) s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100);
+        // Efectos cruzados (suaves)
+        if ((impact.popularity||0) > 0) { const b=s.risk; s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100); deltas.risk += s.risk - b; }
+        if ((impact.satisfaction||0) > 0) { const b=s.margin; s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100); deltas.margin += s.margin - b; }
         if ((impact.margin||0) > 0) {
-          s.satisfaction = clamp(s.satisfaction - impact.margin*0.05, 0, 100);
-          s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100);
+          let b=s.satisfaction; s.satisfaction = clamp(s.satisfaction - impact.margin*0.05, 0, 100); deltas.satisfaction += s.satisfaction - b;
+          b=s.popularity; s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100); deltas.popularity += s.popularity - b;
         }
 
-        /* Ajuste de omnicanalidad por equilibrio online/sala (capado) */
+        // Ajuste omni por equilibrio online/sala (capado)
         const gap = Math.abs(s.online - s.sala);
-        let balanceAdj = 3 - gap * 0.10;
-        balanceAdj = Math.max(-3, Math.min(3, balanceAdj));
-        if (balanceAdj > 0) s.omni = clamp(s.omni + scalePositive(s.omni, balanceAdj, cap), 0, 100);
-        else s.omni = clamp(s.omni + balanceAdj, 0, 100);
+        let balanceAdj = Math.max(-3, Math.min(3, 3 - gap * 0.10));
+        if (balanceAdj !== 0) {
+          const b = s.omni;
+          if (balanceAdj > 0) s.omni = clamp(s.omni + scalePositive(s.omni, balanceAdj, cap), 0, 100);
+          else s.omni = clamp(s.omni + balanceAdj, 0, 100);
+          deltas.omni += s.omni - b;
+        }
 
-        /* No permitir 100% antes del final */
+        // No permitir 100% antes del final
         if (levelIndex < 4) {
           s.omni = Math.min(s.omni, cap);
           s.risk = Math.min(s.risk, cap);
         }
 
-        /* Suelo de margen para que nunca quede en 0 por arrastre */
-        s.margin = Math.max(s.margin, 5);
+        // Suelo de margen
+        if (s.margin < 10) { deltas.margin += (10 - s.margin); s.margin = 10; }
 
-        return s;
+        return {state:s, deltas};
       }
 
-      /* ================== UI de escenarios/eventos ================== */
+      /* ============== UI Escenarios / Eventos ============== */
       function ScenarioCard({ blockTitle, sc, onChoose, selectedIndex }) {
         return (
           <div className="card">
@@ -446,6 +479,7 @@
         );
       }
 
+      /* =================== App =================== */
       function App() {
         const [screen, setScreen] = useState('board');
         const [levelIndex, setLevelIndex] = useState(0);
@@ -453,13 +487,16 @@
         const [scenarioIndex, setScenarioIndex] = useState(0);
         const [selectedIndex, setSelectedIndex] = useState(null);
         const [eventOpen, setEventOpen] = useState(false);
+        const [toast, setToast] = useState("");
+        const [pending, setPending] = useState([]); // efectos diferidos
+        const [deltas, setDeltas] = useState({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
         const [showJump, setShowJump] = useState(false);
         const [jumpLabel, setJumpLabel] = useState("");
-
         const [state, setState] = useState({ ...START });
         const [notes, setNotes] = useState([]);
 
         const level = LEVELS[levelIndex];
+
         const success = useMemo(() =>
           Math.round(
             state.margin*0.25 + state.satisfaction*0.25 + state.omni*0.25 +
@@ -467,15 +504,40 @@
           ), [state]
         );
 
+        // Render HUD (portaled manual para simplificar)
+        useEffect(() => {
+          const slot = document.getElementById('hud-slot');
+          if (slot) ReactDOM.render(
+            <HUD {...state} deltas={deltas} />,
+            slot
+          );
+        }, [state, deltas]);
+
+        // Limpia deltas tras mostrar animación
+        useEffect(() => {
+          if (Object.values(deltas).some(v=>v!==0)) {
+            const t = setTimeout(() => setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0}), 1500);
+            return () => clearTimeout(t);
+          }
+        }, [deltas]);
+
         const currentBlock = level.blocks[blockIndex];
         const scenariosArr = currentBlock?.type === 'scenarios' ? currentBlock.scenarios : null;
         const currentScenario = scenariosArr ? scenariosArr[scenarioIndex] : null;
 
+        // Aplica impacto + registra dif. Si hay _defer, programarlo.
+        const applyOption = (opt) => {
+          const {state:ns, deltas:dd} = applyImpactToState(state, opt.impact || {}, levelIndex);
+          setState(ns); setDeltas(dd);
+          if (opt._defer) {
+            setPending(p => [...p, { trigger: levelIndex + (opt._defer.after||1), impact: opt._defer.impact||{}, msg: opt._defer.msg||"Resultados positivos de la acción previa." }]);
+          }
+        };
+
         const pickOption = (opt, idx) => {
           if (selectedIndex !== null) return;
           setSelectedIndex(idx);
-          const newState = applyImpactToState(state, opt.impact || {}, levelIndex);
-          setState(newState);
+          applyOption(opt);
           if (opt.note === 'rgiaj' && !notes.includes('rgiaj')) setNotes([...notes, 'rgiaj']);
         };
 
@@ -495,24 +557,46 @@
           finishLevel();
         };
 
+        const processDeferredFor = (targetIndex) => {
+          const now = []; const later = [];
+          pending.forEach(e => (e.trigger === targetIndex ? now.push(e) : later.push(e)));
+          if (now.length) {
+            // Aplica impactos acumulados
+            let merged = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
+            let msg = now.map(e => e.msg).join(" ");
+            now.forEach(e => { const {state:ns, deltas:dd} = applyImpactToState(state, e.impact, targetIndex); Object.keys(merged).forEach(k => merged[k]+=dd[k]||0); setState(ns); });
+            setDeltas(merged);
+            setToast(msg);
+            setTimeout(()=>setToast(""), 2500);
+          }
+          setPending(later);
+        };
+
         const finishLevel = () => {
-          if (level.jump) { setJumpLabel(`📅 ${level.jump}…`); setShowJump(true); setTimeout(() => setShowJump(false), 1500); }
+          if (level.jump) { setJumpLabel(`📅 ${level.jump}…`); setShowJump(true); setTimeout(() => setShowJump(false), 1200); }
           const more = levelIndex + 1 < LEVELS.length;
           if (more) {
-            setTimeout(() => { setLevelIndex(levelIndex + 1); setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null); setScreen('board'); }, 900);
-          } else { setTimeout(() => setScreen('final'), 600); }
+            const nextIndex = levelIndex + 1;
+            setTimeout(() => {
+              setLevelIndex(nextIndex);
+              setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null); setScreen('board');
+              processDeferredFor(nextIndex); // aplica recuperaciones diferidas al entrar
+            }, 900);
+          } else {
+            setTimeout(() => setScreen('final'), 600);
+          }
         };
 
         const afterEventChoose = (opt) => {
-          const newState = applyImpactToState(state, opt.impact || {}, levelIndex);
-          setState(newState);
+          applyOption(opt);
           setEventOpen(false);
           finishLevel();
         };
 
         const resetGame = () => {
           setScreen('board'); setLevelIndex(0); setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null);
-          setEventOpen(false); setShowJump(false); setJumpLabel(""); setState({ ...START }); setNotes([]);
+          setEventOpen(false); setShowJump(false); setJumpLabel(""); setState({ ...START });
+          setNotes([]); setPending([]); setToast(""); setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
         };
 
         return (
@@ -530,7 +614,14 @@
 
             <AnimatePresence mode="wait">
               {screen === 'board' && (
-                <Board level={level} levelIndex={levelIndex} state={state} success={success} onOpenScenario={()=>setScreen('scenario')} />
+                <Board
+                  level={level}
+                  levelIndex={levelIndex}
+                  state={state}
+                  success={success}
+                  onOpenScenario={()=>setScreen('scenario')}
+                  toast={toast}
+                />
               )}
 
               {screen === 'scenario' && currentBlock?.type === 'scenarios' && currentScenario && (
@@ -542,11 +633,15 @@
                     </div>
                   </div>
 
-                  <ScenarioCard blockTitle={currentBlock.heading} sc={currentScenario} onChoose={pickOption} selectedIndex={selectedIndex} />
+                  <ScenarioCard
+                    blockTitle={currentBlock.heading}
+                    sc={currentScenario}
+                    onChoose={pickOption}
+                    selectedIndex={selectedIndex}
+                  />
 
                   <div className="mt-3">
-                    <HUD omni={state.omni} risk={state.risk} margin={state.margin} satisfaction={state.satisfaction}
-                         popularity={state.popularity} online={state.online} sala={state.sala} />
+                    <HUD {...state} deltas={deltas} />
                   </div>
 
                   {selectedIndex!==null && (
@@ -561,7 +656,11 @@
             </AnimatePresence>
 
             {eventOpen && currentBlock?.type !== 'event' && (
-              <EventModal block={LEVELS[levelIndex].blocks.find(b=>b.type==='event')} onChoose={afterEventChoose} onClose={()=>{ setEventOpen(false); finishLevel(); }} />
+              <EventModal
+                block={LEVELS[levelIndex].blocks.find(b=>b.type==='event')}
+                onChoose={afterEventChoose}
+                onClose={()=>{ setEventOpen(false); finishLevel(); }}
+              />
             )}
 
             {notes.includes('rgiaj') && (
