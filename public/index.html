@@ -5,33 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pause & Play: Rumbo a la Cima</title>
   <link rel="icon" href="data:,">
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root { color-scheme: dark; }
     body { background: linear-gradient(to bottom, #111827, #0b0f19, #000); color: #fff; }
     .card { border: 1px solid #374151; background: rgba(31,41,55,0.7); border-radius: 1rem; }
     .progress { height: 8px; border-radius: 9999px; background: #374151; overflow: hidden }
-    .progress > div { height: 100%; background: #ef4444; transition: width .25s ease; }
+    .progress > div { height: 100%; transition: width .25s ease; }
     .btn { border-radius: .75rem; font-weight: 600; padding: .6rem 1rem; }
     .btn-primary { background: #dc2626; } .btn-primary:hover { background: #b91c1c; }
-    .btn-secondary { background: #374151; } .btn-outline { border: 1px solid #4b5563; }
+    .btn-secondary { background: #374151; }
+    .btn-outline { border: 1px solid #4b5563; }
     .btn-outline:hover { border-color: #ef4444; }
     .btn:disabled { opacity:.5; cursor:not-allowed; }
     .opt-picked { border-color:#f87171 !important; background:rgba(239,68,68,.08) !important; }
-
-    /* Deltas ▲ / ▼ */
     .delta-badge { font-size:.70rem; padding:.12rem .4rem; border-radius:.45rem; display:inline-flex; gap:.3rem; align-items:center; }
     .delta-up   { color:#22c55e; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.35); }
     .delta-down { color:#ef4444; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); }
   </style>
 
-  <!-- React + ReactDOM -->
   <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Framer Motion -->
   <script src="https://cdn.jsdelivr.net/npm/framer-motion/dist/framer-motion.umd.js"></script>
-  <!-- Babel -->
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
@@ -49,14 +44,14 @@
     const clamp = (v, min=0, max=100) => Math.max(min, Math.min(max, v));
     const rnd = (n) => Math.round(n);
 
-    /* --------- Widgets --------- */
     const ProgressBar = ({ value=0, color='#ef4444' }) => {
       const v = clamp(Math.round(value), 0, 100);
       return <div className="progress w-full"><div style={{width: v+'%', background: color}}></div></div>;
     };
+
     function Metric({label, val, color, delta}) {
       const show = delta && Math.abs(delta) >= 1;
-      const up = delta>0;
+      const up = delta > 0;
       return (
         <div className="bg-gray-800/50 rounded-xl p-3 text-center">
           <div className="text-[11px] text-gray-400 tracking-wide">{label}</div>
@@ -69,6 +64,7 @@
         </div>
       );
     }
+
     function HUD({ omni, risk, margin, satisfaction, popularity, online, sala, deltas }) {
       const items = [
         {label:'Omnicanalidad',val:rnd(omni),color:'#60a5fa',k:'omni'},
@@ -85,6 +81,7 @@
         </div>
       );
     }
+
     function StageMap({ current }) {
       const points = [
         {x:80,y:260},{x:240,y:220},{x:400,y:260},{x:560,y:210},{x:720,y:160},{x:880,y:90}
@@ -105,6 +102,7 @@
         </svg>
       );
     }
+
     function Board({ level, levelIndex, state, success, onOpenScenario, toast, deltas }) {
       return (
         <div className="grid lg:grid-cols-3 gap-6">
@@ -143,7 +141,8 @@
 
           <AnimatePresence>
             {toast && (
-              <MotionDiv key="toast"
+              <MotionDiv
+                key="toast"
                 initial={{opacity:0, x:10}} animate={{opacity:1, x:0}} exit={{opacity:0, x:10}}
                 transition={{duration:.25}}
                 className="fixed top-6 right-6 z-[100] max-w-sm pointer-events-none
@@ -156,6 +155,7 @@
         </div>
       );
     }
+
     const FinalScreen = ({ score, stats, onRestart }) => (
       <div className="card">
         <div className="text-center space-y-4 py-12 px-6">
@@ -171,15 +171,15 @@
             <div className="bg-white/5 p-3 rounded-xl">Online: <b>{rnd(stats.online)}%</b></div>
             <div className="bg-white/5 p-3 rounded-xl">Sala: <b>{rnd(stats.sala)}%</b></div>
           </div>
-          <div className="flex justify-center gap-4 mt-4"><button className="btn btn-secondary" onClick={onRestart}>🔁 Reiniciar</button></div>
+          <div className="flex justify-center gap-4 mt-4">
+            <button className="btn btn-secondary" onClick={onRestart}>🔁 Jugar de nuevo</button>
+          </div>
         </div>
       </div>
     );
 
-    /* ---------------- Contenido (Etapas) ---------------- */
     const LEVELS = [
-      /* ============== ETAPA 0 ============== */
-      { key:"e0", icon:"🏕️", title:"Etapa 0 — Captación", jump:"+1 mes",
+      { key:"e0", icon:"🏕️", title:"Etapa 0 — Captación",
         blocks:[
           { type:"scenarios", heading:"Escenarios (bases de decisión):", scenarios:[
             { title:"Estrategias de captación.", desc:"Vías de captación de clientes para el Casino:",
@@ -206,8 +206,7 @@
         ]
       },
 
-      /* ============== ETAPA 1 ============== */
-      { key:"e1", icon:"⚡", title:"Etapa 1 — Activación", jump:"+3 meses",
+      { key:"e1", icon:"⚡", title:"Etapa 1 — Activación",
         blocks:[
           { type:"scenarios", heading:"Escenarios:", scenarios:[
             { title:"Clientes registrados sin verificación.", desc:"El 45% de los nuevos registros no han completado su verificación:",
@@ -234,8 +233,7 @@
         ]
       },
 
-      /* ============== ETAPA 2 ============== */
-      { key:"e2", icon:"🔁", title:"Etapa 2 — Retención", jump:"+6 meses",
+      { key:"e2", icon:"🔁", title:"Etapa 2 — Retención",
         blocks:[
           { type:"scenarios", heading:"Escenarios:", scenarios:[
             { title:"Caída de actividad tras el primer depósito.", desc:"Detectas una bajada del rendimiento tras una gran campaña de activación:",
@@ -247,22 +245,21 @@
             { title:"Baja participación de los clientes en promociones semanales.", desc:"El calendario de promociones online no tiene buena acogida en jugadores regulares. El ROI de las campañas está cayendo y se evalúa cómo reactivar el interés:",
               options:[
                 { text:"Segmentar las promociones por valor para hacerlas más atractivas.", impact:{ satisfaction:+8, margin:+1, risk:-2, omni:+4 } },
-                { text:"Duplicar las promociones por un tiempo para incentivar su uso.", impact:{ popularity:+10, satisfaction:+6, margin:-10, risk:+6 } },
-                { text:"Crear nuevos formatos (desafíos, minijuegos propios, ...).", impact:{ popularity:+8, satisfaction:+8, online:+6, margin:-6 } },
+                { text:"Duplicar las promociones durante un tiempo para incentivar su uso.", impact:{ popularity:+10, satisfaction:+6, margin:-10, risk:+6 } },
+                { text:"Crear nuevos formatos (desafíos semanales, minijuegos propios, ...).", impact:{ popularity:+8, satisfaction:+8, online:+6, margin:-6 } },
               ]},
           ]},
           { type:"event", heading:"Evento exclusivo:", title:"Nuevo Lanzamiento",
             desc:"Un proveedor TOP nos elige para darnos en exclusiva su lanzamiento más esperado del año:",
             scenarios:[{ title:"", options:[
-              { text:"Lanzar campaña multicanal + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, _defer:{after:1,msg:"El lanzamiento deja cola larga: +6% margen.", impact:{margin:+6}} },
-              { text:"Lanzamiento anticipado 2 días para VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
-              { text:"FreeSpins exclusivos para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
+              { text:"Lanzar campaña multicanal durante la semana previa + posicionamiento premium en la web.", impact:{ omni:+15, popularity:+20, risk:+10, margin:-8 }, _defer:{after:1,msg:"El lanzamiento deja cola larga: +6% margen.", impact:{margin:+6}} },
+              { text:"Hacer un lanzamiento anticipado de 2 días para clientes VIP.", impact:{ satisfaction:+10, popularity:+8, risk:+4, margin:-6 } },
+              { text:"Crear una promoción de FreeSpins exclusiva para clientes de los locales.", impact:{ sala:+8, omni:+6, popularity:+6, margin:-6 } },
             ]}]}
         ]
       },
 
-      /* ============== ETAPA 3 ============== */
-      { key:"e3", icon:"⚖️", title:"Etapa 3 — Riesgo", jump:"+9 meses",
+      { key:"e3", icon:"⚖️", title:"Etapa 3 — Riesgo",
         blocks:[
           { type:"scenarios", heading:"Escenarios:", scenarios:[
             { title:"Jugador intensivo Omnicanal.", desc:"Un cliente con alta actividad tanto en sala como online muestra sesiones muy prolongadas y depósitos frecuentes. Su comportamiento genera preocupación en el equipo:",
@@ -273,51 +270,49 @@
               ]},
             { title:"Solicitud de exclusión voluntaria.", desc:"Cliente con alta actividad nos pide tomarse un descanso:",
               options:[
-                { text:"Bloqueo de cuenta inmediato y pedirle que solicite autoexclusión.", impact:{ risk:-15, satisfaction:-4 } },
-                { text:"Contactar para analizar riesgos (nota RGIAJ).", impact:{ risk:-10, satisfaction:+4 }, note:"rgiaj" },
-                { text:"Intento de disuasión bajando límites y retrasando el trámite.", impact:{ risk:+15, satisfaction:-15, omni:-5 } },
+                { text:"Bloqueo de cuenta inmediato y pedirle que solicite autoexclusión por el tiempo que considere.", impact:{ risk:-15, satisfaction:-4 } },
+                { text:"Contactar con él para analizar qué riesgos manifiesta.", impact:{ risk:-10, satisfaction:+4 }, note:"rgiaj" },
+                { text:"Intento de disuasión sugiriendo una bajada de límites y tratar de retrasar el trámite.", impact:{ risk:+15, satisfaction:-15, omni:-5 } },
               ]},
           ]},
           { type:"event", heading:"Evento exclusivo:", title:"Nueva regulación",
-            desc:"DGOJ exige avisos de pausa automática y límites por defecto más bajos:",
+            desc:"La DGOJ anuncia una nueva norma que exige avisos de pausa automática y límites por defecto más bajos. El equipo debe decidir cómo implementar el cambio antes de la fecha límite:",
             scenarios:[{ title:"", options:[
-              { text:"Adelantar el cumplimiento.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
-              { text:"Plan gradual: primero nuevos, luego resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:+2 }, _defer:{after:1, msg:"El plan gradual ha reducido costes operativos: +3% margen.", impact:{margin:+3}} },
-              { text:"Esperar al último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 } },
+              { text:"Adelantar el cumplimiento y aplicar los límites cuanto antes para estar preparados.", impact:{ risk:-10, satisfaction:+8, omni:+6, margin:-6 } },
+              { text:"Plan gradual aplicándolo únicamente a nuevos clientes y luego extenderlo al resto.", impact:{ risk:-6, satisfaction:+4, omni:+3, margin:+2 } },
+              { text:"Esperar a la publicación oficial y retrasar su aplicación hasta el último día.", impact:{ risk:+20, satisfaction:-15, margin:+10, omni:-10 } },
             ]}]}
         ]
       },
 
-      /* ============== ETAPA 4 ============== */
-      { key:"e4", icon:"🏆", title:"Etapa 4 — Fidelización", jump:"+1 año",
+      { key:"e4", icon:"🏆", title:"Etapa 4 — Fidelización",
         blocks:[
           { type:"scenarios", heading:"Escenarios:", scenarios:[
-            { title:"Club VIP Omnicanal.", desc:"Unificar beneficios para experiencia continua de alto valor:",
+            { title:"Club VIP Omnicanal.", desc:"Tras meses de crecimiento digital, se plantea integrar los programas de fidelización de salas físicas y online bajo una misma marca: Club VIP Omnicanal. El objetivo: unificar beneficios y crear una experiencia continua para los jugadores más valiosos:",
               options:[
                 { text:"Modelo conjunto. Un solo club con puntos acumulables en ambos canales y beneficios cruzados.", impact:{ omni:+20, satisfaction:+10, margin:-10 } },
                 { text:"Modelo espejo. Beneficios más fuertes en online para los clientes de sala y beneficios más fuertes en sala para clientes online.", impact:{ omni:+10, satisfaction:+6, margin:-6 } },
-                { text:"Modelo paralelo. Club VIP conjunto pero manteniendo las preferencias de cada cliente", impact:{ omni:-2, satisfaction:+8, margin:+2 }, _defer:{after:1, msg:"El modelo paralelo optimiza los costes de fidelización: +5% margen.", impact:{margin:+5}} },
+                { text:"Modelo paralelo. Club VIP conjunto pero manteniendo las preferencias de cada cliente", impact:{ omni:-2, satisfaction:+8, margin:+2 } },
               ]},
-            { title:"Beneficios y recompensas.", desc:"Retener y motivar sin dependencia:",
+            { title:"Diseño de beneficios y recompensas.", desc:"El club necesita una propuesta de valor clara para retener y motivar sin generar dependencia:",
               options:[
-                { text:"Experiencias exclusivas (viajes, eventos, regalos).", impact:{ satisfaction:+10, popularity:+8, margin:-8 } },
-                { text:"Recompensas web (cashback, misiones VIP, atención).", impact:{ satisfaction:+8, popularity:+6, margin:-6, online:+6 } },
-                { text:"Reconocimientos simbólicos (trofeos, distintivos).", impact:{ satisfaction:+6, popularity:+4, margin:-2 } },
-                { text:"Bonificación agresiva (cashbacks altos continuos).", impact:{ margin:-20, popularity:+15, risk:+10, omni:-5 } },
+                { text:"Experiencias exclusivas como viajes, eventos, regalos.", impact:{ satisfaction:+10, popularity:+8, margin:-8 } },
+                { text:"Recompensas web. Mejoras en promociones como cashback, misiones VIP, atención personalizada,...", impact:{ satisfaction:+8, popularity:+6, margin:-6, online:+6 } },
+                { text:"Reconocimientos simbólicos. Trofeos digitales, distintivos visuales para sus cuentas, comunicación preferente,...", impact:{ satisfaction:+6, popularity:+4, margin:-2 } },
+                { text:"Bonificación agresiva. Promociones continuas y altos porcentajes de Cashbacks.", impact:{ margin:-20, popularity:+15, risk:+10, omni:-5 } },
               ]},
           ]},
           { type:"event", heading:"Evento exclusivo:", title:"¡Quiero mi promoción!",
-            desc:"No VIPs se quejan en redes por trato desigual:",
+            desc:"Un grupo de jugadores regulares (no VIP) se queja en redes sociales por los beneficios exclusivos del club, acusando trato desigual y falta de transparencia:",
             scenarios:[{ title:"", options:[
-              { text:"Transparencia y meritocracia.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
-              { text:"Crear niveles intermedios (plata/oro).", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
-              { text:"Mantener exclusividad (prestigio).", impact:{ popularity:-6, satisfaction:+2, margin:+2 } },
+              { text:"Explicación sobre la meritocracia del club y transparencia con criterios de acceso.", impact:{ satisfaction:+4, risk:-2, popularity:-2 } },
+              { text:"Abrir una sección intermedia con categorías (plata/oro) y mejoras de menor nivel.", impact:{ satisfaction:+8, popularity:+6, margin:-6 } },
+              { text:"Mantener la exclusividad del club priorizando prestigio y diferenciación.", impact:{ satisfaction:+2, margin:+2, popularity:-6 } },
             ]}]}
         ]
       },
 
-      /* ============== ETAPA 5 — TEXTOS EXACTOS ============== */
-      { key:"e5", icon:"🏔️", title:"Etapa 5 — Consolidación de Marca", jump:"",
+      { key:"e5", icon:"🏔️", title:"Etapa 5 — Consolidación de Marca",
         blocks:[
           { type:"scenarios", heading:"Escenarios:", scenarios:[
             { title:"Pause&PlayBet.es",
@@ -325,13 +320,13 @@
               options:[
                 { text:"Lanzar una nueva marca específica para apuestas deportivas, con identidad y público propio.", impact:{ omni:+1, risk:+6, margin:+4, popularity:+8 } },
                 { text:"Integrar las apuestas deportivas dentro del casino, manteniendo una marca única y coherente.", impact:{ omni:+15, risk:+10, margin:+10, satisfaction:+2 } },
-                { text:"Crear una submarca vinculada (ej. pauseandplaybet.es), con identidad propia pero bajo el paraguas corporativo.", impact:{ omni:+8, popularity:+6, risk:+6, margin:+3 }, _defer:{after:1, msg:"La submarca logra rentabilidad independiente: +8% margen, +3% satisfacción.", impact:{margin:+8, satisfaction:+3}} },
+                { text:"Crear una submarca vinculada (ej. pauseandplaybet.es), con identidad propia pero bajo el paraguas corporativo.", impact:{ omni:+8, popularity:+6, risk:+6, margin:+3 } },
               ]},
             { title:"Experiencia Total Omnicanal",
               desc:"Pause & Play quiere consolidar su modelo omnicanal conectando completamente la experiencia física y digital. La dirección estudia incorporar terminales de apuestas deportivas en los locales, integradas con las cuentas online:",
               options:[
-                { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 }, _defer:{after:1,msg:"Las terminales empiezan a rentabilizarse: +6% margen, +4% sala.", impact:{margin:+6, sala:+4}} },
-                { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 }, _defer:{after:2,msg:"El piloto madura: +4% margen, +2% sala.", impact:{margin:+4, sala:+2}} },
+                { text:"Instalar terminales en todos los locales y comunicarlo como salto tecnológico de la marca.", impact:{ omni:+10, sala:+15, risk:+8, margin:-10 } },
+                { text:"Probar el modelo en unos pocos centros estratégicos y escalar gradualmente según resultados.", impact:{ omni:+6, sala:+8, risk:+4, margin:-4 } },
                 { text:"Priorizar comunidades con mayor madurez digital y permisos favorables para optimizar recursos.", impact:{ omni:+8, sala:+10, risk:+3, margin:-6 } },
               ]},
           ]},
@@ -346,7 +341,6 @@
       },
     ];
 
-    /* --------------- Motor + economía --------------- */
     function stageCap(levelIndex) {
       if (levelIndex <= 1) return 90;
       if (levelIndex <= 3) return 94;
@@ -364,12 +358,14 @@
       if (current >= cap) d *= 0.1;
       return d;
     }
+
     const START = { omni:40, risk:40, margin:50, satisfaction:50, popularity:40, online:30, sala:30 };
 
     function applyImpactToState(state, impact, levelIndex) {
       const s = { ...state };
       const cap = stageCap(levelIndex);
       const deltas = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
+
       const add = (k, v=0, useCap=true) => {
         if (v===undefined) return;
         const before = s[k];
@@ -391,15 +387,25 @@
       add('online', impact.online, true);
       add('sala', impact.sala, true);
 
-      // Efectos cruzados suaves
-      if ((impact.popularity||0) > 0) { const b=s.risk; s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100); deltas.risk += s.risk - b; }
-      if ((impact.satisfaction||0) > 0) { const b=s.margin; s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100); deltas.margin += s.margin - b; }
+      if ((impact.popularity||0) > 0) {
+        const b = s.risk;
+        s.risk = clamp(s.risk + impact.popularity*0.25, 0, 100);
+        deltas.risk += s.risk - b;
+      }
+      if ((impact.satisfaction||0) > 0) {
+        const b = s.margin;
+        s.margin = clamp(s.margin - impact.satisfaction*0.10, 0, 100);
+        deltas.margin += s.margin - b;
+      }
       if ((impact.margin||0) > 0) {
-        let b=s.satisfaction; s.satisfaction = clamp(s.satisfaction - impact.margin*0.05, 0, 100); deltas.satisfaction += s.satisfaction - b;
-        b=s.popularity; s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100); deltas.popularity += s.popularity - b;
+        let b = s.satisfaction;
+        s.satisfaction = clamp(s.satisfaction - impact.margin*0.05, 0, 100);
+        deltas.satisfaction += s.satisfaction - b;
+        b = s.popularity;
+        s.popularity = clamp(s.popularity - impact.margin*0.05, 0, 100);
+        deltas.popularity += s.popularity - b;
       }
 
-      // Bonus de omnicanalidad por equilibrio online/sala
       const gap = Math.abs(s.online - s.sala);
       let balanceAdj = Math.max(-3, Math.min(3, 3 - gap * 0.10));
       if (balanceAdj !== 0) {
@@ -409,13 +415,12 @@
         deltas.omni += s.omni - b;
       }
 
-      // Cap suave por etapas
       if (levelIndex < 4) {
         s.omni = Math.min(s.omni, cap);
         s.risk = Math.min(s.risk, cap);
       }
 
-      // Suelo 5%
+      // Suelo del 5%
       s.omni = Math.max(5, s.omni);
       s.risk = Math.max(5, s.risk);
       s.margin = Math.max(5, s.margin);
@@ -427,7 +432,6 @@
       return {state:s, deltas};
     }
 
-    /* --------------- UI: Escenarios / Evento --------------- */
     function ScenarioCard({ blockTitle, sc, onChoose, selectedIndex }) {
       return (
         <div className="card">
@@ -452,21 +456,24 @@
         </div>
       );
     }
+
     function EventModal({ block, onChoose, onClose }) {
       if (!block) return null;
-      const ev = block;
       return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="w-full max-w-xl">
             <div className="card" style={{borderColor:'#f59e0b'}}>
               <div className="p-6">
                 <h3 className="text-xl md:text-2xl font-bold text-yellow-400">
-                  <span className="text-gray-300">{ev.heading}</span> <i>{ev.title}</i>
+                  <span className="text-gray-300">{block.heading}</span> <i>{block.title}</i>
                 </h3>
-                <p className="text-gray-200 mt-2">{ev.desc}</p>
+                <p className="text-gray-200 mt-2">{block.desc}</p>
                 <div className="grid gap-3 mt-4">
-                  {ev.scenarios[0].options.map((opt, i) => (
-                    <button key={i} className="btn btn-secondary text-left" style={{background:'#f59e0b',color:'#000'}} onClick={() => onChoose(opt)}>
+                  {block.scenarios[0].options.map((opt, i) => (
+                    <button key={i}
+                      className="btn btn-secondary text-left"
+                      style={{background:'#f59e0b',color:'#000'}}
+                      onClick={() => onChoose(opt)}>
                       {opt.text}
                     </button>
                   ))}
@@ -481,7 +488,6 @@
       );
     }
 
-    /* ------------------- App ------------------- */
     function App() {
       const [screen, setScreen] = useState('board');
       const [levelIndex, setLevelIndex] = useState(0);
@@ -490,7 +496,7 @@
       const [selectedIndex, setSelectedIndex] = useState(null);
       const [eventOpen, setEventOpen] = useState(false);
       const [toast, setToast] = useState("");
-      const [pending, setPending] = useState([]); // efectos diferidos
+      const [pending, setPending] = useState([]);
       const [deltas, setDeltas] = useState({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
       const [state, setState] = useState({ ...START });
       const [notes, setNotes] = useState([]);
@@ -503,16 +509,23 @@
       const success = useMemo(() =>
         Math.round(
           state.margin*0.25 + state.satisfaction*0.25 + state.omni*0.25 +
-          (100 - state.risk)*0.15 + state.popularity*0.05 + (state.online+state.sala)/2*0.05
+          (100 - state.risk)*0.15 + state.popularity*0.05 + ((state.online+state.sala)/2)*0.05
         ), [state]
       );
 
       const applyOption = (opt) => {
         const res = applyImpactToState(state, opt.impact || {}, levelIndex);
-        setState(res.state); setDeltas(res.deltas);
+        setState(res.state);
+        setDeltas(res.deltas);
+
         if (opt._defer) {
-          setPending(p => [...p, { trigger: levelIndex + (opt._defer.after||1), impact: opt._defer.impact||{}, msg: opt._defer.msg||"Resultados positivos de la acción previa." }]);
+          setPending(p => [...p, {
+            trigger: levelIndex + (opt._defer.after||1),
+            impact: opt._defer.impact||{},
+            msg: opt._defer.msg||"Resultados positivos de la acción previa."
+          }]);
         }
+
         if (opt.note === 'rgiaj' && !notes.includes('rgiaj')) setNotes([...notes, 'rgiaj']);
       };
 
@@ -529,17 +542,37 @@
           let merged = {omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0};
           let msg = now.map(e => e.msg).join(" ");
           let s = state;
+
           now.forEach(e => {
             const res = applyImpactToState(s, e.impact, targetIndex);
             s = res.state;
-            Object.keys(merged).forEach(k => merged[k]+=res.deltas[k]||0);
+            Object.keys(merged).forEach(k => merged[k] += res.deltas[k] || 0);
           });
+
           setState(s);
           setDeltas(merged);
           setToast(msg);
           setTimeout(()=>setToast(""), 7000);
         }
         setPending(later);
+      };
+
+      const finishLevel = () => {
+        setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
+        const more = levelIndex + 1 < LEVELS.length;
+        if (more) {
+          const nextIndex = levelIndex + 1;
+          setTimeout(() => {
+            setLevelIndex(nextIndex);
+            setBlockIndex(0);
+            setScenarioIndex(0);
+            setSelectedIndex(null);
+            setScreen('board');
+            processDeferredFor(nextIndex);
+          }, 800);
+        } else {
+          setTimeout(() => setScreen('final'), 600);
+        }
       };
 
       const next = () => {
@@ -553,25 +586,13 @@
           if (blockIndex + 1 < level.blocks.length) {
             const nb = level.blocks[blockIndex + 1];
             if (nb.type === 'event') { setEventOpen(true); return; }
-            setBlockIndex(blockIndex + 1); setScenarioIndex(0); setSelectedIndex(null); return;
+            setBlockIndex(blockIndex + 1);
+            setScenarioIndex(0);
+            setSelectedIndex(null);
+            return;
           }
         }
         finishLevel();
-      };
-
-      const finishLevel = () => {
-        setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
-        const more = levelIndex + 1 < LEVELS.length;
-        if (more) {
-          const nextIndex = levelIndex + 1;
-          setTimeout(() => {
-            setLevelIndex(nextIndex);
-            setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null); setScreen('board');
-            processDeferredFor(nextIndex);
-          }, 800);
-        } else {
-          setTimeout(() => setScreen('final'), 600);
-        }
       };
 
       const afterEventChoose = (opt) => {
@@ -581,10 +602,20 @@
       };
 
       const resetGame = () => {
-        setScreen('board'); setLevelIndex(0); setBlockIndex(0); setScenarioIndex(0); setSelectedIndex(null);
-        setEventOpen(false); setState({ ...START }); setNotes([]); setPending([]);
-        setToast(""); setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
+        setScreen('board');
+        setLevelIndex(0);
+        setBlockIndex(0);
+        setScenarioIndex(0);
+        setSelectedIndex(null);
+        setEventOpen(false);
+        setState({ ...START });
+        setNotes([]);
+        setPending([]);
+        setToast("");
+        setDeltas({omni:0,risk:0,margin:0,satisfaction:0,popularity:0,online:0,sala:0});
       };
+
+      const eventBlock = level.blocks.find(b => b.type === 'event');
 
       return (
         <div>
@@ -593,7 +624,6 @@
               <h2 className="text-xl md:text-2xl font-semibold text-gray-300">Demo Jugable</h2>
             </MotionDiv>
             <div className="flex items-center gap-3">
-              <button className="btn btn-secondary text-sm" onClick={resetGame}>Reiniciar</button>
               <button className={`btn btn-primary text-sm ${screen==='board'?'opacity-60':''}`} onClick={()=>setScreen('board')}>Tablero</button>
               <button className={`btn btn-primary text-sm ${screen==='scenario'?'opacity-60':''}`} onClick={()=>setScreen('scenario')}>Escenarios</button>
             </div>
@@ -618,6 +648,7 @@
                   <div className="p-6">
                     <h2 className="text-2xl md:text-3xl font-bold mb-2">{level.icon} {level.title}</h2>
                     <p className="text-sm text-gray-300">{currentBlock.heading}</p>
+                    <p className="text-xs text-gray-400 mt-1">Decisión {scenarioIndex+1} de {currentBlock.scenarios.length}</p>
                   </div>
                 </div>
 
@@ -643,12 +674,14 @@
               </div>
             )}
 
-            {screen === 'final' && (<FinalScreen score={success} stats={state} onRestart={resetGame} />)}
+            {screen === 'final' && (
+              <FinalScreen score={success} stats={state} onRestart={resetGame} />
+            )}
           </AnimatePresence>
 
-          {eventOpen && currentBlock?.type !== 'event' && (
+          {eventOpen && eventBlock && (
             <EventModal
-              block={LEVELS[levelIndex].blocks.find(b=>b.type==='event')}
+              block={eventBlock}
               onChoose={afterEventChoose}
               onClose={()=>{ setEventOpen(false); finishLevel(); }}
             />
